@@ -42,3 +42,31 @@ Master server:
     currently envion having two master machines in seperate networks for
     redundacy purposes. Ring-Admins manage the master servers. 
 
+Log server:
+    This machine sole purpose is to receive logs from all servers related
+    to the ring and securely store them. It will be publicly known who
+    hosts a log server and who has access to it. These servers are managed
+    by the ring-admins. 
+
+LOGGING:
+
+TTY Logging:
+    We hope to implement a form of tty logging to audit users and have a
+    method to trace problems back to individual users. The fact that every
+    thing on regular nodes will be logged can prevent and discourage abuse.
+    Logs will be written to central log servers which are managed and
+    accessed solely by ring-admins. 
+
+Syslogging:
+    All syslog messages will be send to central logservers. 
+
+SOFTWARE:
+
+Puppet:
+
+Smokeping:
+
+Munin:
+
+Backups:
+
