@@ -11,4 +11,6 @@ Priority 2:
     dnsutils, traceroute
   
 Priority 3:
+  - fix standard MOTD stating information like the the hostname, 
+    owner/admin and ASN
 
