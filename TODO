@@ -1,0 +1,10 @@
+Priority 1:
+  - Centralized user provisioning and management
+  - Figure out how to deal with sudo and programs like tcpdump
+  - Delegation of ring.nlnog.net
+
+Priority 2:
+  - Setup smokeping master/slave between all participants
+
+Priority 3:
+
