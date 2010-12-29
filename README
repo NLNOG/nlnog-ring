@@ -62,7 +62,7 @@ We will create a CNAME record such as 'your-organisation01.ring.nlnog.net'
 pointing towards the records you created. If the subdomain 'ring01' is not 
 available any other name will do, the main goal is to allow users to
 renumber the machine they provisioned to the ring without notifying admins
-or other users and keep management overhead as low. 
+or other users and keep management overhead low. 
 
 MANAGEMENT:
 
