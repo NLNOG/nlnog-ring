@@ -5,6 +5,7 @@ Priority 1:
 
 Priority 2:
   - Setup smokeping master/slave between all participants
-
+  - compile list of essential packages: tcpdump, build-essential, mtr, dnsutils
+  
 Priority 3:
 

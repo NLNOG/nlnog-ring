@@ -1,0 +1,61 @@
+NLNOG RING servers
+
+See /participants.txt for an up to date list of organisations involved.
+
+Mij is opgevallen dat er tussen de nederlandse network operators aardig wat 'shell toegang' dealtjes zijn,
+waarbij vrienden elkaar toegang geven op een server in hun netwerk, zodat de ander makkelijker kan debuggen,
+pingen en tracerouten. Er zijn verschillende netwerkproblemen te noemen, waarbij het onontbeerlijk is om
+toegang te hebben op machines buiten je netwerk en te zien wat de "buitenwereld" ziet. Bekende voorbeelden
+zijn "het werkt vanaf even ip adressen, maar niet van oneven ip adressen, als we via deze route gaan". 
+
+Om het samenwerken makkelijker te maken is het idee ontstaan om enigszins georganiseerd elkaar toegang te
+geven. De deal is feitelijk, doneer een shelldoos, en krijg toegang op de rest van de shelldozen in het 
+netwerk, vandaar de naam "ring".
+
+Zo kun je snel en makkelijk bijvoorbeeld mtr op 10 machines starten, en hoef je niet te wachten tot iemand
+tijd voor je heeft om testen uit te voeren. 
+
+OS & andere absolute musts:
+    - Ubuntu 10.04 LTS (64 bit bij voorkeur)
+    - 1 IPv4 adres
+    - 1 IPv6 adres
+    - Ik (Job Snijders) heb minstens root/sudo nodig
+                (er word nog nagedacht hoe leden programma's als tcpdump kunnen gebruiken
+                zonder te veel rechten nodig te hebben.)
+
+De volgende vereisten zijn enkel indicatief:
+    - 1 core/cpu
+    - 20 GB ruimte
+    - 512 mb ram
+
+DNS:
+Maak 2 dns entries aan onder het hoofddomein van je organisatie:    
+    - ring01.$Organisatie.$tld IN A $IP_adres_van_machine
+    - ring01.$Organisatie.$tld IN AAAA $IPv6_adres_van_machine
+Ik zal dan een CNAME maken zoals  "$Organisatie01.ring.nlnog.net" welke verwijst naar
+ring01.$Organisatie.$tld, zo zal dns beheer minimaal zijn en kun je als de machine omnummeren zonder de rest
+te hoeven inlichten. Als ring01 niet beschikbaar is onder je domein, zal een ander subdomein ook voldoen, 
+het doel is dat er geen ip adressen onder ring.nlnog.net komen om mij werk te besparen. 
+
+Beheer:
+Er zal centraal iets worden gemaakt om de machine up2date te houden, puppet of een eigen oplossing zijn
+momenteel de twee opties. Op deze manier hebben organisaties die bijdragen geen omkijken naar de machine. 
+Je hoeft geen speciale packages te installeren. 
+
+Abuse:
+Misbruik maken van het vertrouwen dat anderen je geven is absoluut verboden en er geldt een "zero tolerance"
+beleid. Dit houdt onder anderen in dat na 1 misbruik poging de toegang permanent zal worden ontzegd tot het
+project.  Op alle machines zal tty logging aangezet worden.
+
+Contact:
+Er zal een mailinglist opgezet worden om mensen op de hoogte te houden en een plek te bieden voor vragen of
+ideeen. Graag het email adres van een aanspreekpunt binnen jullie organisatie aan mij doorgeven. 
+
+Met vriendelijke groeten,
+
+Job Snijders
+job@snijders-it.nl
+http://snijders-it.nl/pgp/
+http://snijders-it.nl/job-snijders-public-ssh-key.txt
+
+o
