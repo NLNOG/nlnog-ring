@@ -1,13 +1,13 @@
 Participants:
 
   - BIT (bit01.ring.nlnog.net)
+  - Cambrium (cambrium01.ring.nlnog.net)
   - ColoClue (coloclue01.ring.nlnog.net)
+  - Interconnect (interconnect01.ring.nlnog.net)
   - InTouch (intouch01.ring.nlnog.net)
   - WideXS (widexs01.ring.nlnog.net)
   - XLSHosting (xlshosting01.ring.nlnog.net)
 
 The following organisations have made a commitment:
-  - Cambrium
-  - Interconnect
   - Serverius
   - Zylon
