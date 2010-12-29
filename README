@@ -1,62 +1,107 @@
 NLNOG RING servers
 
-See /participants.txt for an up to date list of organisations involved.
+MOTIVATION:
 
-See /TODO, /FAQ for more information. 
+I've noticed that between there are a lot of friendly 'shell access' 
+exchange deals between dutch network operators. This makes it easier for
+parties to debug network issues and troubleshoot 'from the outside'. A
+point of view outside your network is absolutely essential, seeing what
+others see is a useful thing with a variety of network problems. Well known
+examples are 'it works for even numbered ip address, but not for odd
+numbered ip address via this and this route'. 
 
-Mij is opgevallen dat er tussen de nederlandse network operators aardig wat 'shell toegang' dealtjes zijn,
-waarbij vrienden elkaar toegang geven op een server in hun netwerk, zodat de ander makkelijker kan debuggen,
-pingen en tracerouten. Er zijn verschillende netwerkproblemen te noemen, waarbij het onontbeerlijk is om
-toegang te hebben op machines buiten je netwerk en te zien wat de "buitenwereld" ziet. Bekende voorbeelden
-zijn "het werkt vanaf even ip adressen, maar niet van oneven ip adressen, als we via deze route gaan". 
+To encourage and provide a streamlined way of cooperating I introduce the
+"NLNOG RING". In essence the deal is very simple: you donate a machine to
+the ring, and you gain access on all servers which are part of the network,
+hence the name "ring". 
 
-Om het samenwerken makkelijker te maken is het idee ontstaan om enigszins georganiseerd elkaar toegang te
-geven. De deal is feitelijk, doneer een shelldoos, en krijg toegang op de rest van de shelldozen in het 
-netwerk, vandaar de naam "ring".
+A great example would be to launch a traceroute from 10 servers in diffent
+networks and quickly get the results instead of waiting till somebody has
+the time to run some tests for you. 
 
-Zo kun je snel en makkelijk bijvoorbeeld mtr op 10 machines starten, en hoef je niet te wachten tot iemand
-tijd voor je heeft om testen uit te voeren. 
+PARTICIPATION:
 
-OS & andere absolute musts:
-    - Ubuntu 10.04 LTS (64 bit bij voorkeur)
-    - 1 IPv4 adres
-    - 1 IPv6 adres
-    - Ik (Job Snijders) heb minstens root/sudo nodig
-                (er word nog nagedacht hoe leden programma's als tcpdump kunnen gebruiken
-                zonder te veel rechten nodig te hebben.)
+Participation is open to everybody who meets the following requirements: 
+    - You a network operator
+    - The organisation you work for has BGP routers connected to the
+      "Default Free Zone" and maybe even dutch IXP's.
+    - Your organisation has it's own ASN, IPv4 and IPv6 prefix(es). 
+    - You have enable or configure rights on those routers. 
+    - You are involved in the dutch networkers community.
+    - You have permission from your organisation to become involved in the
+      ring project. 
 
-De volgende vereisten zijn enkel indicatief:
-    - 1 core/cpu
-    - 20 GB ruimte
-    - 512 mb ram
+Currently roughly 10 organisations are participating, a full up to date
+list is available in /participants.txt
+
+MACHINE:
+
+The following requirements are mandatory:
+    - Clean ubuntu 10.04 LTS installation (no special packages are required
+      except openssh-server)
+    - 1 IPv4 address
+    - 1 IPv6 address
+    - You are willing to give full sudo access to the Ring-Admins
+        (we will get to the security considerations later in this document)
+
+The following suggestions are indicative:
+    - 1 core or CPU
+    - 20 gigabyte disk space
+    - 512 megabyte RAM
+    - 100mbit NIC
+        (please decide for yourself what is appropiate, the machine will be
+        a mere shell server managed by puppetclient)
 
 DNS:
-Maak 2 dns entries aan onder het hoofddomein van je organisatie:    
-    - ring01.$Organisatie.$tld IN A $IP_adres_van_machine
-    - ring01.$Organisatie.$tld IN AAAA $IPv6_adres_van_machine
-Ik zal dan een CNAME maken zoals  "$Organisatie01.ring.nlnog.net" welke verwijst naar
-ring01.$Organisatie.$tld, zo zal dns beheer minimaal zijn en kun je als de machine omnummeren zonder de rest
-te hoeven inlichten. Als ring01 niet beschikbaar is onder je domein, zal een ander subdomein ook voldoen, 
-het doel is dat er geen ip adressen onder ring.nlnog.net komen om mij werk te besparen. 
 
-Beheer:
-Er zal centraal iets worden gemaakt om de machine up2date te houden, puppet of een eigen oplossing zijn
-momenteel de twee opties. Op deze manier hebben organisaties die bijdragen geen omkijken naar de machine. 
-Je hoeft geen speciale packages te installeren. 
+To prevent clutter and overhead in the ring.nlnog.net domain we request you
+to make two DNS records pointing to the machine:
+    - ring01.your-organisation.tld IN A $IP_address_of_the_machine
+    - ring01.your-organisation.tld in AAAA $IPv6_address_of_the_machine
+We will create a CNAME record such as 'your-organisation01.ring.nlnog.net'
+pointing towards the records you created. If the subdomain 'ring01' is not 
+available any other name will do, the main goal is to allow users to
+renumber the machine they provisioned to the ring without notifying admins
+or other users and keep management overhead as low. 
 
-Abuse:
-Misbruik maken van het vertrouwen dat anderen je geven is absoluut verboden en er geldt een "zero tolerance"
-beleid. Dit houdt onder anderen in dat na 1 misbruik poging de toegang permanent zal worden ontzegd tot het
-project.  Op alle machines zal tty logging aangezet worden.
+MANAGEMENT:
 
-Contact:
-Er zal een mailinglist opgezet worden om mensen op de hoogte te houden en een plek te bieden voor vragen of
-ideeen. Graag het email adres van een aanspreekpunt binnen jullie organisatie aan mij doorgeven. 
+All regular nodes (machines provided by organisations) are managed
+through a centralized puppet system. Ring-Admins will take care of software
+and security updates, installation and user management. The goal is to make
+it as easy as possible for organisations to provide a machine and not worry
+about it afterwards. 
 
-Met vriendelijke groeten,
+Machine owners are allowed and encouraged to install software which they 
+deem necessary to comply with the standards of their organisation, examples 
+are: munin-node, n2, backup programs or a snmp daemon. 
 
-Job Snijders
-job@snijders-it.nl
+ABUSE: 
+    
+    This project is based on mutual trust: you give me access I give you
+    access. We hope this model is strong enough to be viable. Abuse of the
+    resources provided by the NLNOG RING project is absolutly forbidden and
+    we apply a 'zero tolerance' policy. This means that after one abuse
+    incident you will be permantly banned from the project. Through
+    extensive logging and limitating the rights users have on other
+    people's systems we also hope to prevent abuse. For more information
+    regarding the security of machines please see '/doc/security.txt'.
+
+FURTHER READING: 
+
+See /TODO and /FAQ for more information about the progress of the project
+
+CONTACT: 
+
+A non-exhaustive list of people involved in desiging and managing the nlnog
+ring project: Peter van Dijk, Teun Vink, Edwin Hermans, Martin Pels and me. 
+
+If you have any questions please do not hesitate to contact me. 
+
+Kind regards,
+
+Job Snijders <job@snijders-it.nl>
 http://snijders-it.nl/pgp/
 http://snijders-it.nl/job-snijders-public-ssh-key.txt
+
 
