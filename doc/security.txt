@@ -1,0 +1,44 @@
+NLNOG RING Security considerations
+
+ROLES:
+
+Regular users:
+    These users will have shell access to all servers in the Ring. They
+    will have no sudo or root rights. They will not be allowed to do
+    modifications to the systems and are not allowed to install packages.
+    This group will be the main users of the Ring Servers. These users
+    should be able to troubleshoot and debug with tools like mtr,
+    traceroute, tcpdump and ping. 
+
+Owners:
+    An owner is a useraccount who has donated a server to the ring. He has
+    root/sudo access on his own machine and is allowed to make changes he
+    sees fit (and hopefully not disrupt the functionality of the system
+    ;-). Owners are expected to install software like vmware-tools,
+    munin-node or n2. Also, they might make backups of their system with
+    rsync. Owners do not have to take care of security updates, user
+    management or the installation of software. This will be done from a
+    central management system: puppet. 
+
+Ring-Admins
+    This is a small group of publicly known people whom the owners trust
+    with sudo access on their systems. Ring-admins will manage the ring:
+    installation and updating of software, creation of users and will be
+    the first line of support in case of abuse tickets. Currently the
+    ring-admins are Job Snijders, Edwin Hermans, Martin Pels and Peter van
+    Dijk. 
+
+MACHINE ROLES:
+
+Regular ring node:
+    This is a machine donated by an organisation. Regular users from all
+    organisations in the ring can logon to these machines to perform tasks
+    related to network troubleshooting. The owner of a node has full rights
+    to his node, but not others. 
+
+Master server:
+    These machines are a starting point for regular users to maintain their
+    ssh keys, update contact information about their organisation. We
+    currently envion having two master machines in seperate networks for
+    redundacy purposes. Ring-Admins manage the master servers. 
+
