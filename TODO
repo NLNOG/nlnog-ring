@@ -1,9 +1,11 @@
 Priority 1:
-  - Centralized user provisioning and management
-  - Figure out how to deal with sudo and programs like tcpdump
+  - Centralized user provisioning and management (will be done through
+    puppet)
+  - Figure out how to deal with a world without sudo and still make programs like 
+    tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
   - Delegation of ring.nlnog.net
   - Setup mailinglist for all participants
-  - Setup puppet
+  - Setup puppet for software management. 
 
 Priority 2:
   - Setup smokeping master/slave between all participants

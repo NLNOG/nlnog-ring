@@ -60,13 +60,17 @@ TTY Logging:
 Syslogging:
     All syslog messages will be send to central logservers. 
 
-SOFTWARE:
+ABUSE:
 
-Puppet:
-
-Smokeping:
-
-Munin:
-
-Backups:
-
+    Abusing the trust other organisations give you is absolutly forbidden.
+    We apply a 'zero tolerance' policy, which means that after the first
+    incident you will be permantly banned from the project. If the
+    ring-admins discover or are notified about an abuse incident they will
+    contact the owners of the machine on which the abuse took place and
+    fully disclosure what happend and who was involved. The above mentioned
+    logging will assist in this matter. 
+    
+    Furthermore we hope to prevent abuse by actively applying security
+    updates as soon as they come out and not expose services except SSH to
+    the outside world. Also keep in mind that regular users have no sudo
+    rights. 
