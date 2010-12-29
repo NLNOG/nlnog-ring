@@ -39,8 +39,8 @@ Regular ring node:
 Master server:
     These machines are a starting point for regular users to maintain their
     ssh keys, update contact information about their organisation. We
-    currently envion having two master machines in seperate networks for
-    redundacy purposes. Ring-Admins manage the master servers. 
+    currently envison having two master machines in seperate networks for
+    redundancy purposes. Ring-Admins manage the master servers. 
 
 Log server:
     This machine sole purpose is to receive logs from all servers related
