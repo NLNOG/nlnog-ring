@@ -1,0 +1,16 @@
+Puppet objectives
+
+group ring-users' should exist on all nodes
+group ring-admins' should exist on all nodes
+
+all regular users should be in ring-users
+peter, edwin, job, martin should be in group ring-admins
+
+the owner should be in group admin
+
+if a user does not exist on system the user should be created with --disabled-password
+
+puppet should sync $username/.ssh from the master to all nodes automaticly if something changes
+
+all servers should run in timezone "Europe/Amsterdam"
+
