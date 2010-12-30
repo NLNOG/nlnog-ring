@@ -1,5 +1,11 @@
 NLNOG RING Security considerations
 
+ACCESS CREDENTIALS:
+    We will not use any passwords anywhere on the ring servers, this makes
+    management easier and is more secure. Everything will be done through 
+    ssh-keys. In the user-guide.txt you can find more information about
+    how to sync your ssh-keys amongst all servers. 
+
 ROLES:
 
 Regular users:
