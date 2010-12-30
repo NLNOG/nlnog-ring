@@ -1,3 +1,15 @@
+127.0.0.1   localhost
+212.19.220.59   master01.ring.nlnog.net master01
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+# need to be removed after the dns delegation has been fixed
+
 212.19.220.58   intouch01 intouch01.ring.nlnog.net
 213.136.13.101  bit01 bit01.ring.nlnog.net
 94.142.241.204  coloclue01 coloclue01.ring.nlnog.net
