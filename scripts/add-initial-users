@@ -1,0 +1,7 @@
+sudo addgroup ring-admin
+sudo echo "%ring-admin ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+sudo adduser martin ring-admin
+sudo adduser job ring-admin
+sudo adduser edwin ring-admin
+sudo wget -q -O /etc/hosts https://github.com/SnijdersIT/nlnog-ring/raw/master/etc/hosts
+
