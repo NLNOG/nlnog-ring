@@ -1,5 +1,4 @@
 127.0.0.1   localhost
-212.19.220.59   master01.ring.nlnog.net master01
 
 # The following lines are desirable for IPv6 capable hosts
 ::1     localhost ip6-localhost ip6-loopback
