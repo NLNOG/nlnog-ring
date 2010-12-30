@@ -14,3 +14,8 @@ puppet should sync $username/.ssh from the master to all nodes automaticly if so
 
 all servers should run in timezone "Europe/Amsterdam"
 
+owners are responsible for maintaining a good clock on the machine, they can decide to use ntp or some virtualisation stuff to make the clock tick steady. 
+
+apt-get install unattended-upgrades && add the following line to /etc/apt/apt.conf.d/10periodic
+    APT::Periodic::Unattended-Upgrade "1";
+
