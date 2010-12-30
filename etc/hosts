@@ -1,9 +1,9 @@
-212.19.220.58   intouch01
-213.136.13.101  bit01
-94.142.241.204  coloclue01
-213.206.104.156 widexs01
-178.18.89.144   xlshosting01
-212.83.212.122  interconnect01
-217.19.17.23    cambrium01
-193.16.154.25   zylon01
-212.19.220.59   master01
+212.19.220.58   intouch01 intouch01.ring.nlnog.net
+213.136.13.101  bit01 bit01.ring.nlnog.net
+94.142.241.204  coloclue01 coloclue01.ring.nlnog.net
+213.206.104.156 widexs01 widexs01.ring.nlnog.net
+178.18.89.144   xlshosting01 xlshosting01.ring.nlnog.net
+212.83.212.122  interconnect01 interconnect01.ring.nlnog.net
+217.19.17.23    cambrium01 cambrium01.ring.nlnog.net
+193.16.154.25   zylon01 zylon01.ring.nlnog.net
+212.19.220.59   master01 master01.ring.nlnog.net
