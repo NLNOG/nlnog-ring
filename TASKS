@@ -2,10 +2,6 @@
   and the owner
 - add owner to group 'admin' and modify /etc/sudoers to NOPASSWORD for
   group admin
-- install puppetmaster
-- install puppetclient
-- create all users on all regular servers
-- install a test package with puppet
 - make ring-ssh-key sync script on master which distributes ssh keys to all
   ring nodes
 
