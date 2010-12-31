@@ -7,7 +7,7 @@ Participants:
   - InTouch (intouch01.ring.nlnog.net) - AS8954
   - WideXS (widexs01.ring.nlnog.net) - AS12573
   - XLSHosting (xlshosting01.ring.nlnog.net) - AS35470
-  - Zylon
+  - Zylon (zylon01.ring.nlnog.net) - AS8312
 
 The following organisations have made a commitment:
   - Serverius
