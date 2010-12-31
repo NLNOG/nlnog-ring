@@ -1,5 +1,7 @@
 Puppet objectives
 
+This file contains random notes about how the installation should be
+
 group ring-users' should exist on all nodes
 group ring-admins' should exist on all nodes
 
@@ -10,7 +12,11 @@ the owner should be in group admin
 
 if a user does not exist on system the user should be created with --disabled-password
 
-puppet should sync $username/.ssh from the master to all nodes automaticly if something changes
+puppet will make sure 1 specific ssh key that a organisation gave us is always present 
+in the authorized_keys, other ssh keys can be synced through a small shell script which 
+loops through all the servers: for i in servers; do rsyncs ~/.ssh/*
+$servers; done
+
 
 all servers should run in timezone "Europe/Amsterdam"
 
@@ -19,3 +25,5 @@ owners are responsible for maintaining a good clock on the machine, they can dec
 apt-get install unattended-upgrades && add the following line to /etc/apt/apt.conf.d/10periodic
     APT::Periodic::Unattended-Upgrade "1";
 
+users should not be able to read each others files or homedirs, everything
+700

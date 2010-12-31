@@ -1,0 +1,22 @@
+# update the system and add some basic packages
+apt-get update
+apt-get upgrade
+apt-get dist-upgrade
+apt-get install mtr traceroute tcpdump build-essential dnsutils
+echo "$org.ring.nlnog.net" > /etc/hostname
+# ensure timezone is correct
+dpkg-reconfigure tzdata
+# check date
+date
+# now probably is a good time for a reboot
+reboot
+# add /etc/hosts 
+wget -O /etc/hosts --no-check-certificate https://github.com/SnijdersIT/nlnog-ring/raw/master/etc/hosts
+# install puppet
+apt-get install puppet
+# run puppet and make sure you sign the cert on the master
+puppetd --test
+# if all is good enable puppet in /etc/default/puppet
+/etc/init.d/puppet start
+# done!
+
