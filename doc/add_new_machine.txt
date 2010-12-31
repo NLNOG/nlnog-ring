@@ -2,7 +2,6 @@
 apt-get update
 apt-get upgrade
 apt-get dist-upgrade
-apt-get install mtr traceroute tcpdump build-essential dnsutils
 echo "$org.ring.nlnog.net" > /etc/hostname
 # ensure timezone is correct
 dpkg-reconfigure tzdata
