@@ -2,34 +2,37 @@ NLNOG RING Project - User Guide
 
 PROVISIONING A SERVER:
     
-    Install ubuntu in accordance on a machine that complies with our
-    requirements, email credentials to the machine to one of the
-    ring-admins (pgp encrypted). The ring-admin will install puppet and
+    Install ubuntu in accordance with the requirements. The user that is 
+    created by the installation can be called 'nlnog'. After installation 
+    you can add one of our public ssh keys to the 
+    /home/nlnog/.ssh/authorized_keys file and email us the FQDN of the 
+    machine and your ssh key.  The ring-admin will install puppet and 
     setup dns in the ring.nlnog.net zone. 
+
+    PGP & SSH Keys are available at: http://ring.nlnog.net/
 
     After you have been notified that the server has been added to the ring
     and is under control of the puppetmaster, there are the following tasks
     you need to perform:
 
-        - login with your assigned username & the ssh-key you gave us
+    - login with your assigned username & the ssh-key you gave us
     
-        - change the root password to something 'passwd root'
-            Only you will know this password, it meant to be used in
-            emergencies. 
+    - change the root password to something 'passwd root' Only you will know
+        this password, it meant to be used in emergencies. 
         
-        - If you don't change the password the user root cannot login.
+    - If you don't change the password the user root cannot login.
         
-        - add additional ssh keys to your authorized_keys and run the
-            'ring-sync-ssh-keys' script to rsync the authorized_keys file
-            from your machine to all others. This way you can give
-            co-workers access to the ring.
+    - add additional ssh keys to your authorized_keys and run the 
+        'ring-sync-ssh-keys' script to rsync the authorized_keys file from
+        your machine to all others. This way you can give co-workers access
+        to the ring.
 
 USING THE RING:
 
     - a lot of utilities are available to you, see the
-      doc/install_packages.txt file for a full list. If you need a package
-      please email admins@ring.nlnog.net with your request. Generally we
-      only install packages available to a stock ubuntu 10.04 LTS install.
+        doc/install_packages.txt file for a full list. If you need a package
+        please email admins@ring.nlnog.net with your request. Generally we
+        only install packages available to a stock ubuntu 10.04 LTS install.
 
     - Never use passwords on the ring, only use ssh-keys. 
 
