@@ -31,7 +31,7 @@ PROVISIONING A SERVER:
 USING THE RING:
 
     - a lot of utilities are available to you, see the
-        doc/install_packages.txt file for a full list. If you need a package
+        doc/installed_packages.txt file for a full list. If you need a package
         please email admins@ring.nlnog.net with your request. Generally we
         only install packages available to a stock ubuntu 10.04 LTS install.
 
