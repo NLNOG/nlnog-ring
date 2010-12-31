@@ -17,5 +17,10 @@ apt-get install puppet
 puppetd --test
 # if all is good enable puppet in /etc/default/puppet
 /etc/init.d/puppet start
+# ring-admin users exist (for puppet has behaved well) you can delete the
+# rootpassword and clean up the nlnog install user. 
+passwd --delete root
+deluser nlnog
+rm -rf /home/nlnog
 # done!
 

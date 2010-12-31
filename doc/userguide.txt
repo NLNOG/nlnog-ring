@@ -18,7 +18,7 @@ PROVISIONING A SERVER:
     - login with your assigned username & the ssh-key you gave us
     
     - change the root password to something extremely hard to guess with 
-        "'passwd root". Keep in mind, only you will know this password, 
+        "passwd root". Keep in mind, only you will know this password, 
         it is meant to be used only in emergencies. 
         
     - If you don't change the password the user root cannot login.
