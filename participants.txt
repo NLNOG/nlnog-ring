@@ -11,4 +11,4 @@ Participants:
 
 The following organisations have made a commitment:
   - Serverius
-
+  - Duocast
