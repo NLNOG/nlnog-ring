@@ -9,6 +9,7 @@ ff02::2 ip6-allrouters
 
 # need to be removed after the dns delegation has been fixed
 
+212.19.220.59   master01 master01.ring.nlnog.net puppet
 212.19.220.58   intouch01 intouch01.ring.nlnog.net
 213.136.13.101  bit01 bit01.ring.nlnog.net
 94.142.241.204  coloclue01 coloclue01.ring.nlnog.net
@@ -17,4 +18,4 @@ ff02::2 ip6-allrouters
 212.83.212.122  interconnect01 interconnect01.ring.nlnog.net
 217.19.17.23    cambrium01 cambrium01.ring.nlnog.net
 193.16.154.25   zylon01 zylon01.ring.nlnog.net
-212.19.220.59   master01 master01.ring.nlnog.net puppet
+89.188.27.50    duocast01 duocast01.ring.nlnog.net
