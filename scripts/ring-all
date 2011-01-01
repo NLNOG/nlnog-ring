@@ -1,15 +1,15 @@
 #!/bin/bash
 if [ $# -ne 1 ]
 then
-    echo -e "No arguments were given\nUsuage: `basename $0` \"command to be executed on all servers\""
+    echo -e "No arguments were given\nUsuage: `basename $0` \"command to be executed on all ring servers\""
     exit 65
 fi
 # when ring.nlnog.net NS records are updated we can make this prettier
-# SERVERS=`(dig -t txt +short ring.nlnog.net @ns1.6core.net | sed 's/\"//g')`
-SERVERS="intouch01 xlshosting01 coloclue01 widexs01 bit01"
+# SERVERS=`(dig -t txt +short ring.nlnog.net | sed 's/\"//g')`
+SERVERS=`(dig -t txt +short ring.nlnog.net @ns1.6core.net | sed 's/\"//g')`
 for host in $SERVERS
 do
-#echo $host
-ssh -t $host $@
+echo $host
+ssh -qt $host $@
 done
 
