@@ -20,7 +20,10 @@ reboot
 echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
 
 # install puppet
-apt-get install puppet
+cd /tmp
+wget http://ftp.nl.debian.org/debian/pool/main/p/puppet/puppet_2.6.3-1_all.deb
+wget http://ftp.nl.debian.org/debian/pool/main/p/puppet/puppet-common_2.6.3-1_all.deb
+dpkg -i ./puppet-common_2.6.3-1_all.deb ./puppet_2.6.3-1_all.deb
 
 # run puppet and make sure you sign the cert on the master
 puppetd --test
