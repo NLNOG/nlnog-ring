@@ -33,7 +33,8 @@ USING THE RING:
     - a lot of utilities are available to you, see the
         doc/installed_packages.txt file for a full list. If you need a package
         please email admins@ring.nlnog.net with your request. Generally we
-        only install packages available to a stock ubuntu 10.04 LTS install.
+        only install packages available to a stock Ubuntu 10.10 Maverick Meerkat
+        install.
 
     - Never use passwords on the ring, only use ssh-keys. 
 

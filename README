@@ -37,8 +37,8 @@ list is available in /participants.txt
 MACHINE:
 
 The following requirements are mandatory:
-    - Clean ubuntu 10.04 LTS installation (no special packages are required
-      except openssh-server)
+    - Clean Ubuntu 10.10 Maverick Meerkat installation (no special 
+        packages are required except openssh-server)
     - 1 IPv4 address
     - 1 IPv6 address
     - You are willing to give full sudo access to the Ring-Admins
