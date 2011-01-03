@@ -10,6 +10,7 @@ ff02::2 ip6-allrouters
 # need to be removed after the dns delegation has been fixed
 
 212.19.220.59   master01 master01.ring.nlnog.net puppet
+2001:6e0:100:4001::3    master01 master01.ring.nlnog.net puppet
 
 212.19.220.58   intouch01 intouch01.ring.nlnog.net
 2001:6e0:100:4001::2    intouch01 intouch01.ring.nlnog.net
@@ -24,6 +25,7 @@ ff02::2 ip6-allrouters
 2001:898:2000:d::4      widexs01 widexs01.ring.nlnog.net
 
 178.18.89.144   xlshosting01 xlshosting01.ring.nlnog.net
+2a02:348:5d:5990::1 xlshosting01 xlshosting01.ring.nlnog.net
 
 212.83.212.122  interconnect01 interconnect01.ring.nlnog.net
 2001:4018:1000:b::2     interconnect01 interconnect01.ring.nlnog.net
