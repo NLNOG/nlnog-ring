@@ -4,6 +4,7 @@ Participants:
   - Cambrium (cambrium01.ring.nlnog.net) - AS25596
   - ColoClue (coloclue01.ring.nlnog.net) - AS8283
   - Duocast (duocast01.ring.nlnog.net) - AS31477
+  - Easyhosting (easyhosting01.ring.nlnog.net) - AS39556
   - Interconnect (interconnect01.ring.nlnog.net) - AS9150
   - InTouch (intouch01.ring.nlnog.net) - AS8954
   - WideXS (widexs01.ring.nlnog.net) - AS12573
