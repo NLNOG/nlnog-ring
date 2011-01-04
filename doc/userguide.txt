@@ -3,11 +3,11 @@ NLNOG RING Project - User Guide
 PROVISIONING A SERVER:
     
     Install ubuntu in accordance with the requirements. The user that is 
-    created by the installation can be called 'nlnog'. After installation 
-    you can add one of our public ssh keys to the 
-    /home/nlnog/.ssh/authorized_keys file and email us the FQDN of the 
-    machine and your ssh key.  The ring-admin will install puppet and 
-    setup dns in the ring.nlnog.net zone. 
+    created by the installation can be called 'nlnog'. Please send one the
+    FQDN of the machine and the password (pgp encrypted) to one of the
+    ring-admins. The ring-admin will install puppet and setup dns in the
+    ring.nlnog.net zone. When installation is finished the nlnog user will
+    be removed from the machine. 
 
     PGP & SSH Keys are available at: http://ring.nlnog.net/
 
