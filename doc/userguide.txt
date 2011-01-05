@@ -40,5 +40,18 @@ USING THE RING:
 
     - There are some custom ring scripts available to you to execute
       commands on all or a subset of the servers.
-            $ document here all scripts we want to create
 
+RING SCRIPTS:
+    
+    ring-rsync-ssh-keys
+        
+        This script will synchronize all the public ssh keys from the
+        machine you are currently logged onto to all other servers in the
+        ring. This script is available on all Ring servers. This script is
+        useful if you want to add the public ssh keys of your co-workers to
+        the ring. Keep in mind that puppet will ensure that the ssh key
+        that was given to the ring-admins will always be present in the
+        .ssh/authorized_keys file. You are responsible for adding
+        additional keys of your co-workers through this script. In case of
+        abuse the whole account will be terminated, be careful who you give
+        access to the ring. 
