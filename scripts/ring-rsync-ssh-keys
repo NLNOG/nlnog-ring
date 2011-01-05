@@ -1,0 +1,24 @@
+#!/bin/bash
+if [ $# -ne 1 ]
+then
+    echo -e "No arguments were given\n
+    Usuage: `basename $0` all 
+    This script will rsync the contents of ~/.ssh/ don this server to all ring servers
+    Keep the following things in mind:
+        - puppet will ensure that the ssh key you gave to the ring-admins is always present on all servers
+        - you are responsible for the additional keys that are synced to all servers through this script
+        - only add keys of your co-workers
+        - this script will overwrite the .ssh/authorized_keys file on all other servers
+"
+    exit 65
+fi
+if [ $1 == "all" ]
+then 
+    SERVERS=`(dig -t txt +short ring.nlnog.net @ns1.6core.net | sed 's/\"//g')`
+    for host in $SERVERS
+    do
+        echo $host
+        rsync -avHP ~/.ssh/* $host:.ssh/
+    done
+    exit 0
+fi
