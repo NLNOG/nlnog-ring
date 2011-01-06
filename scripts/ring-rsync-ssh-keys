@@ -14,11 +14,11 @@ then
 fi
 if [ $1 == "all" ]
 then 
-    SERVERS=`(dig -t txt +short ring.nlnog.net @ns1.6core.net | sed 's/\"//g')`
+    SERVERS=`(dig -t txt +short ring.nlnog.net | sed 's/\"//g')`
     for host in $SERVERS
     do
-        echo $host
-        rsync -avHP ~/.ssh/* $host:.ssh/
+        echo $host.ring.nlnog.net
+        rsync -avHP ~/.ssh/* $host.ring.nlnog.net:.ssh/
     done
     exit 0
 fi
