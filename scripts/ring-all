@@ -6,10 +6,9 @@ then
 fi
 # when ring.nlnog.net NS records are updated we can make this prettier
 # SERVERS=`(dig -t txt +short ring.nlnog.net | sed 's/\"//g')`
-SERVERS=`(dig -t txt +short ring.nlnog.net @ns1.6core.net | sed 's/\"//g')`
 for host in $SERVERS
 do
-echo $host
-ssh -qt $host $@
+echo $host.ring.nlnog.net
+ssh -qt $host.ring.nlnog.net $@
 done
 
