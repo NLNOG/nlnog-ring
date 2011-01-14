@@ -5,7 +5,7 @@ then
     exit 65
 fi
 # when ring.nlnog.net NS records are updated we can make this prettier
-# SERVERS=`(dig -t txt +short ring.nlnog.net | sed 's/\"//g')`
+SERVERS=`(dig -t txt +short ring.nlnog.net | sed 's/\"//g')`
 for host in $SERVERS
 do
 echo $host.ring.nlnog.net
