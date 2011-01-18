@@ -3,7 +3,6 @@ Priority 1:
     tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
   - Setup mailinglist for all participants
   - switch from webrick to passanger for puppet
-  - setup some kind of thing that blocks ssh scanners: fail2ban
 
 Priority 2:
   - setup smtp.ring.nlnog.net which will relay for all ring servers (cron emails etc)
