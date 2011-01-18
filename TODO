@@ -3,7 +3,6 @@ Priority 1:
     tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
   - Setup mailinglist for all participants
   - switch from webrick to passanger for puppet
-  - Set SSH logging to verbose 
   - setup some kind of thing that blocks ssh scanners: fail2ban
 
 Priority 2:
