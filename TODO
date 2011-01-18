@@ -1,16 +1,12 @@
 Priority 1:
   - Figure out how to deal with a world without sudo and still make programs like 
     tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
-  - Delegation of ring.nlnog.net
   - Setup mailinglist for all participants
   - switch from webrick to passanger for puppet
   - Set SSH logging to verbose 
   - setup some kind of thing that blocks ssh scanners: fail2ban
 
 Priority 2:
-  - Setup smokeping master/slave between all participants
-  - compile list of essential packages: tcpdump, build-essential, mtr,
-    dnsutils, traceroute
   - setup smtp.ring.nlnog.net which will relay for all ring servers (cron emails etc)
 
 Priority 3:
