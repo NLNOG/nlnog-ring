@@ -10,5 +10,6 @@ for host in $SERVERS
 do
 echo $host.ring.nlnog.net
 ssh -qt $host.ring.nlnog.net $@
+echo ""
 done
 
