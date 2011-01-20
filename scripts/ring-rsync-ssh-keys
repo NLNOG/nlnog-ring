@@ -3,7 +3,7 @@ if [ $# -ne 1 ]
 then
     echo -e "No arguments were given\n
     Usuage: `basename $0` all 
-    This script will rsync the contents of ~/.ssh/ don this server to all ring servers
+    This script will rsync the contents of ~/.ssh/ from this server to all ring servers
     Keep the following things in mind:
         - puppet will ensure that the ssh key you gave to the ring-admins is always present on all servers
         - you are responsible for the additional keys that are synced to all servers through this script
