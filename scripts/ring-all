@@ -8,8 +8,8 @@ fi
 SERVERS=$(dig -t txt +short ring.nlnog.net | sed 's/\"//g')
 for host in $SERVERS
 do
-echo $host.ring.nlnog.net
-ssh -t $host.ring.nlnog.net $@
+echo "host: $host.ring.nlnog.net"
+ssh -q -t $host.ring.nlnog.net $@ || echo "ERROR: ssh command failed"
 echo ""
 done
 
