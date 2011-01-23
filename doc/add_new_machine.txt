@@ -3,18 +3,16 @@
 
 # update the system and add some basic packages
 apt-get update
-apt-get upgrade
 apt-get dist-upgrade
-echo "$org.ring.nlnog.net" > /etc/hostname
+# obviously replace $org with organization name
+echo "$org01.ring.nlnog.net" > /etc/hostname
+hostname -F /etc/hostname
 
 # ensure timezone is correct
 dpkg-reconfigure tzdata
 
 # check date
 date
-
-# now probably is a good time for a reboot
-reboot
 
 # add /etc/hosts 
 echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
@@ -24,8 +22,15 @@ cd /tmp
 wget http://ftp.nl.debian.org/debian/pool/main/p/puppet/puppet_2.6.3-1_all.deb
 wget http://ftp.nl.debian.org/debian/pool/main/p/puppet/puppet-common_2.6.3-1_all.deb
 dpkg -i ./puppet-common_2.6.3-1_all.deb ./puppet_2.6.3-1_all.deb
+# it depends on some packages, this installs them
+apt-get install -f
+dpkg -i ./puppet-common_2.6.3-1_all.deb ./puppet_2.6.3-1_all.deb
 
 # run puppet and make sure you sign the cert on the master
+puppetd --test
+# on the master puppetca --list to see if it's waiting, puppetca --sign --all to sign all waiting
+
+# run puppet to see if it works (try it twice, to make sure)
 puppetd --test
 
 # if all is good enable puppet in /etc/default/puppet
@@ -34,11 +39,11 @@ puppetd --test
 # ring-admin users exist (for puppet has behaved well) you can delete the
 # rootpassword and clean up the nlnog install user. 
 passwd --delete root
-deluser nlnog
-rm -rf /home/nlnog
+deluser --remove-home nlnog
 
 # add the owner of the machine to the admin group so he can manage parts of his machine
 # we do this manually because puppet isnt perfect
 adduser $organisation admin
 # done!
-
+# now is probably a good time for a reboot
+reboot
