@@ -12,4 +12,3 @@ echo "host: $host.ring.nlnog.net"
 ssh -q -t $host.ring.nlnog.net $@ || echo "ERROR: ssh command failed"
 echo ""
 done
-
