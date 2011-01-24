@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-if [ $# -ne 1 ]
+if [ $# -lt 1 ]
 then
     echo -e "No arguments were given\nUsuage: `basename $0` \"command to be executed on all ring servers\""
     exit 65
