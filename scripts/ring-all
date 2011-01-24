@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-
 if [ $# -lt 1 ]; then
     echo "No arguments were given"
     echo "Usuage: `basename $0` \"command to be executed on all ring servers\""
-    exit 1
+    exit 65
 fi
 
 SERVERS=$(dig -t txt +short ring.nlnog.net)
