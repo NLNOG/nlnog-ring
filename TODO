@@ -9,9 +9,15 @@ Priority 2:
   - setup smtp.ring.nlnog.net which will relay for all ring servers (cron emails etc)
   - modify ping, traceroute and mtr so they can run without sudo with ICMP
     traceroute and subsecond mtr stuff
-
+  - push mail configuration so root@ on a machien is forwarded to ring-admins
+    and the owner
+ 
 Priority 3:
   - fix standard MOTD stating information like the the hostname, 
     owner/admin and ASN
   - logging of all commands, maybe use http://freshmeat.net/projects/snoopy_logger
   - setup up proper ssh host key distribution through puppet 
+
+Priority 4:
+ - add owner to group 'admin' through puppet (hard task - manually is easy
+   and only once)

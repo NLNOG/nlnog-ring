@@ -19,77 +19,9 @@ A great example would be to launch a traceroute from 10 servers in different
 networks and quickly get the results instead of waiting till somebody has
 the time to run some tests for you. 
 
-PARTICIPATION:
-
-Participation is open to everybody who meets the following requirements: 
-    - You are a network operator
-    - The organisation you work for has BGP routers connected to the
-      "Default Free Zone" and maybe even dutch IXP's.
-    - Your organisation has it's own ASN, IPv4 and IPv6 prefix(es). 
-    - You have enable or configure rights on those routers. 
-    - You are involved in the dutch networkers community.
-    - You have permission from your organisation to become involved in the
-      ring project. 
-
-Currently roughly 10 organisations are participating, a full up to date
-list is available in /participants.txt
-
-MACHINE:
-
-The following requirements are mandatory:
-    - Clean Ubuntu 10.10 Maverick Meerkat installation (no special 
-        packages are required except openssh-server)
-    - 1 IPv4 address
-    - 1 IPv6 address
-    - You are willing to give full sudo access to the Ring-Admins
-        (we will get to the security considerations later in this document)
-
-The following suggestions are indicative:
-    - 1 core or CPU
-    - 20 gigabyte disk space
-    - 512 megabyte RAM
-    - 100mbit NIC
-        (please decide for yourself what is appropiate, the machine will be
-        a mere shell server managed by puppetclient)
-
-DNS:
-
-To prevent clutter and overhead in the ring.nlnog.net domain we request you
-to make two DNS records pointing to the machine:
-    - ring01.your-organisation.tld IN A $IP_address_of_the_machine
-    - ring01.your-organisation.tld in AAAA $IPv6_address_of_the_machine
-We will create a CNAME record such as 'your-organisation01.ring.nlnog.net'
-pointing towards the records you created. If the subdomain 'ring01' is not 
-available any other name will do, the main goal is to allow users to
-renumber the machine they provisioned to the ring without notifying admins
-or other users and keep management overhead low. 
-
-MANAGEMENT:
-
-All regular nodes (machines provided by organisations) are managed
-through a centralized puppet system. Ring-Admins will take care of software
-and security updates, installation and user management. The goal is to make
-it as easy as possible for organisations to provide a machine and not worry
-about it afterwards. 
-
-Machine owners are allowed and encouraged to install software which they 
-deem necessary to comply with the standards of their organisation, examples 
-are: munin-node, n2, backup programs or a snmp daemon. 
-
-ABUSE: 
+FOR UP TO DATE INFORMATION PLEASE VISIT: 
     
-    This project is based on mutual trust: you give me access I give you
-    access. We hope this model is strong enough to be viable. Abuse of the
-    resources provided by the NLNOG RING project is absolutly forbidden and
-    we apply a 'zero tolerance' policy. This means that after one abuse
-    incident you will be permantly banned from the project. Through
-    extensive logging and limitating the rights users have on other
-    people's systems we also hope to prevent abuse. For more information
-    regarding the security of machines please see '/doc/security.txt'.
-
-FURTHER READING: 
-
-See /TODO and /FAQ for more information about the progress of the project
+    http://ring.nlnog.net/
 
 CONTACT: 
 

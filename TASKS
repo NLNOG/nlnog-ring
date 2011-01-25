@@ -1,7 +1,0 @@
-- push mail configuration so root@ on a machien is forwarded to ring-admins
-  and the owner
-- add owner to group 'admin' and modify /etc/sudoers to NOPASSWORD for
-  group admin
-- make ring-ssh-key sync script on master which distributes ssh keys to all
-  ring nodes
-
