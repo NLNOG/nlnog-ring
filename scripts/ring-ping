@@ -16,7 +16,7 @@ fi
 host=$1
 
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)'"
-ssh_cmd="ssh -q -t -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
+ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | tr -d '"' | tr ' ' '\n')
 
@@ -51,5 +51,5 @@ fi
 
 connect=$(comm -23 <(echo "${SERVERS}" | sort) \
     <(echo ${results[@]} | tr ' ' '\n' | sort))
-[ -z "${connect[*]}" ] || echo connection failed to: ${connect[@]}
+[ -z "${connect[*]}" ] || echo ssh connection failed: ${connect[@]}
 
