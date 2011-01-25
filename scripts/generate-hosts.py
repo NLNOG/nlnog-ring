@@ -1,8 +1,22 @@
 #!/usr/bin/env python
 
+import sys
 import dns.resolver
 
 ringdomain = "ring.nlnog.net"
+
+def collect_txt_record():
+    answers = dns.resolver.query(ringdomain, 'TXT')
+    text = str(answers[0])
+    if text and len(text) > 50:
+        text = text[1:-1]
+    else:
+        sys.exit("error: we probably didnt receive a full txt record")
+    return text
+try:
+    record = collect_txt_record()
+except:
+    sys.exit("error: something went wrong, maybe i cannot reach a resolver")
 
 # print standard header that every hosts needs regardless
 
@@ -19,11 +33,7 @@ ff02::2 ip6-allrouters
 2001:6e0:100:4001::3    master01 master01.ring.nlnog.net puppet
 """
 
-answers = dns.resolver.query(ringdomain, 'TXT')
-text = str(answers[0])
-if text and len(text) > 2:
-    text = text[1:-1]
-servers = text.split(" ")
+servers = record.split(" ")
 
 for server in servers:
     server_fqdn = server + ".ring.nlnog.net"
