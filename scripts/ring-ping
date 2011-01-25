@@ -16,13 +16,12 @@ fi
 host=$1
 
 ping_cmd="echo \`hostname -s\`: \`${ping} -c1 -W1 $host | grep ^rtt\`"
-ssh_cmd="ssh -q -t {}.ring.nlnog.net ${ping_cmd}" 
+ssh_cmd="ssh -q -t -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
-SERVERS=$(dig -t txt +short ring.nlnog.net)
-SERVERS=${SERVERS//'"'/}
+SERVERS=$(dig -t txt +short ring.nlnog.net | tr -d '"' | tr ' ' '\n')
 
-declare -A replies
-declare -A timeouts
+declare -a replies
+declare -a timeouts
 
 while read line; do
     server=${line%%:*}
@@ -30,11 +29,11 @@ while read line; do
 
     if [ -n "${output}" ]; then
 	time=`echo $output | cut -f6 -d/`
-	replies[$server]=${time}
+	replies=( ${replies[@]} ${time} )
     else
-	timeouts[$server]=$server
+	timeouts=( ${timeouts[@]} $server )
     fi
-done < <(echo -n $SERVERS | xargs -P0 -n1 -I{} -d' '  ${ssh_cmd})
+done < <(echo "$SERVERS" | xargs -P10 -n1 -I{} ${ssh_cmd} 2>/dev/null)
 
 if [ -n "${replies[*]}" ]; then
     total=0
