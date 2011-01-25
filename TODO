@@ -1,7 +1,6 @@
 Priority 1:
   - Figure out how to deal with a world without sudo and still make programs like 
     tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
-  - Setup mailinglist for all participants
   - switch from webrick to passanger for puppet
   - setup ring .deb repo
 
