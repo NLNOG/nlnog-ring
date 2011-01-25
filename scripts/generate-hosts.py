@@ -8,7 +8,7 @@ ringdomain = "ring.nlnog.net"
 def collect_txt_record():
     answers = dns.resolver.query(ringdomain, 'TXT')
     text = str(answers[0])
-    if text and len(text) > 50:
+    if text and len(text) > 50 and ("xlshosting01" in text) and ("intouch01" in text):
         text = text[1:-1]
     else:
         sys.exit("error: we probably didnt receive a full txt record")
