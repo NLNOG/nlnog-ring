@@ -11,7 +11,7 @@ def collect_txt_record():
     if text and len(text) > 50 and ("xlshosting01" in text) and ("intouch01" in text):
         text = text[1:-1]
     else:
-        sys.exit("error: we probably didnt receive a full txt record")
+        sys.exit("error: we probably didn't receive a full txt record")
     return text
 
 record = collect_txt_record()
@@ -34,11 +34,9 @@ ff02::2 ip6-allrouters
 servers = record.split(" ")
 
 for server in servers:
-    server_fqdn = server + ".ring.nlnog.net"
-    server_a = dns.resolver.query(server_fqdn, 'A')
-    server_aaaa = dns.resolver.query(server_fqdn, 'AAAA')
-    server_a = str(server_a[0])
-    server_aaaa = str(server_aaaa[0])
-    print server_a + "\t" + server + "\t" + server_fqdn
-    print server_aaaa + "\t" + server + "\t" + server_fqdn
+    server_fqdn = server + "." + ringdomain
+    for record in 'A', 'AAAA':
+        server_record = dns.resolver.query(server_fqdn, record)
+        server_record = str(server_record[0])
+        print server_record + "\t" + server + "\t" + server_fqdn
     print ""
