@@ -13,10 +13,8 @@ def collect_txt_record():
     else:
         sys.exit("error: we probably didnt receive a full txt record")
     return text
-try:
-    record = collect_txt_record()
-except:
-    sys.exit("error: something went wrong, maybe i cannot reach a resolver")
+
+record = collect_txt_record()
 
 # print standard header that every hosts needs regardless
 
