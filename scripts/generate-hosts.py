@@ -39,4 +39,4 @@ for server in servers:
         server_record = dns.resolver.query(server_fqdn, record)
         server_record = str(server_record[0])
         print server_record + "\t" + server + "\t" + server_fqdn
-    print ""
+    print
