@@ -11,11 +11,14 @@ then
         - only add keys of your co-workers
         - this script will overwrite the .ssh/authorized_keys file on all other servers
 "
-    exit 65
+    exit 1
 fi
+
 if [ $1 = "all" ]
 then 
-    SERVERS=`(dig -t txt +short ring.nlnog.net | sed 's/\"//g')`
+    SERVERS=$(dig -t txt +short ring.nlnog.net)
+    SERVERS=${SERVERS//'"'/}
+
     for host in $SERVERS
     do
         echo $host.ring.nlnog.net
