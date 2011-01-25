@@ -1,6 +1,10 @@
 # These steps are required to add a machine to the ring
 # update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node
 
+# check if cpu is 64 bit - if not please report to the owner of the machine
+# that we do not support 32 bit machines in the ring
+lscpu
+
 # update the system and add some basic packages
 apt-get update
 apt-get dist-upgrade
