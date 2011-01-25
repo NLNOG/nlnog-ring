@@ -2,7 +2,7 @@
 
 import dns.resolver
 
-hostname = "ring.nlnog.net"
+ringdomain = "ring.nlnog.net"
 
 # print standard header that every hosts needs regardless
 
@@ -19,7 +19,7 @@ ff02::2 ip6-allrouters
 2001:6e0:100:4001::3    master01 master01.ring.nlnog.net puppet
 """
 
-answers = dns.resolver.query(hostname, 'TXT')
+answers = dns.resolver.query(ringdomain, 'TXT')
 text = str(answers[0])
 if text and len(text) > 2:
     text = text[1:-1]
