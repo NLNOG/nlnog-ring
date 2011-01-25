@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+ping="ping"
+if [ "$1" = "-6" ]; then
+    ping="ping6"
+    shift
+elif [ -n "${1//[^:]}" ]; then
+    ping="ping6"
+fi
+
+if [ $# -lt 1 ]; then
+    echo "Usuage: $(basename $0) [-6] host"
+    exit 1
+fi
+
+host=$1
+
+ping_cmd="echo \`hostname -s\`: \`${ping} -c1 -W1 $host | grep ^rtt\`"
+ssh_cmd="ssh -q -t {}.ring.nlnog.net ${ping_cmd}" 
+
+SERVERS=$(dig -t txt +short ring.nlnog.net)
+SERVERS=${SERVERS//'"'/}
+
+declare -A replies
+declare -A timeouts
+
+while read line; do
+    server=${line%%:*}
+    output=${line#*:}
+
+    if [ -n "${output}" ]; then
+	time=`echo $output | cut -f6 -d/`
+	replies[$server]=${time}
+    else
+	timeouts[$server]=$server
+    fi
+done < <(echo -n $SERVERS | xargs -P0 -n1 -I{} -d' '  ${ssh_cmd})
+
+if [ -n "${replies[*]}" ]; then
+    total=0
+    for t in ${replies[@]}; do
+	total=$(echo $total + $t | bc)
+    done
+    avg=$(echo $total / ${#replies[@]} | bc)
+    echo ${#replies[@]} servers: ${avg}ms average
+fi
+
+[ -z "${timeouts[*]}" ] || echo unreachable via: ${timeouts[@]}
+
