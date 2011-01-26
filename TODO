@@ -1,7 +1,6 @@
 Priority 1:
   - Figure out how to deal with a world without sudo and still make programs like 
     tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
-  - switch from webrick to passanger for puppet
   - setup ring .deb repo
 
 Priority 2:
@@ -11,6 +10,7 @@ Priority 2:
   - push mail configuration so root@ on a machien is forwarded to ring-admins
     and the owner
   - improve ssh key distribution (fetch keys from all nodes, merge, and push back) 
+  - switch from webrick to passanger for puppet
 
 Priority 3:
   - fix standard MOTD stating information like the the hostname, 
