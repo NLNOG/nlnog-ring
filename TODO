@@ -1,23 +1,28 @@
 Priority 1:
-  - Figure out how to deal with a world without sudo and still make programs like 
-    tcpdump (http://seclists.org/tcpdump/2010/q2/30) work. 
-  - setup ring .deb repo
+
+    - setup ring signed .deb repo, spread key with puppet (peter / edwin)
+    - arrange tcpdump without sudo http://seclists.org/tcpdump/2010/q2/30
+    - modify ping, traceroute so they can run without sudo with ICMP
+      traceroute  (peter)
+    - figure out how to deal with email (central smtp.ring.nlnog.net?) 
 
 Priority 2:
-  - setup smtp.ring.nlnog.net which will relay for all ring servers (cron emails etc)
-  - modify ping, traceroute and mtr so they can run without sudo with ICMP
-    traceroute and subsecond mtr stuff
-  - push mail configuration so root@ on a machien is forwarded to ring-admins
-    and the owner
-  - improve ssh key distribution (fetch keys from all nodes, merge, and push back) 
-  - switch from webrick to passanger for puppet
+
+    - push mail configuration so root@ on a machien is forwarded to ring-admins
+      and the owner
+    - improve ssh key distribution (fetch keys from all nodes, merge, and
+      push back) (martin)
+    - switch from webrick to passanger for puppet (job - when master becomes
+      to slow)
 
 Priority 3:
-  - fix standard MOTD stating information like the the hostname, 
+ 
+    - fix standard MOTD stating information like the the hostname, 
     owner/admin and ASN
-  - logging of all commands, maybe use http://freshmeat.net/projects/snoopy_logger
-  - setup up proper ssh host key distribution through puppet 
+    - logging of all commands, maybe use http://freshmeat.net/projects/snoopy_logger
+    - setup up proper ssh host key distribution through puppet 
 
 Priority 4:
- - add owner to group 'admin' through puppet (hard task - manually is easy
-   and only once)
+
+    - add owner to group 'admin' through puppet (hard task - manually is easy
+    and only once)
