@@ -10,7 +10,8 @@ Priority 2:
     traceroute and subsecond mtr stuff
   - push mail configuration so root@ on a machien is forwarded to ring-admins
     and the owner
- 
+  - improve ssh key distribution (fetch keys from all nodes, merge, and push back) 
+
 Priority 3:
   - fix standard MOTD stating information like the the hostname, 
     owner/admin and ASN
