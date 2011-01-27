@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Written by Sten Spans <sten@snore.nl> 
+
 ping="ping"
 
 while getopts "6vh" flag; do
