@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Written by Job Snijders <job@snijders-it.nl>
+# Modified by Sten Spans <sten@snore.nl>
+
 if [ $# -lt 1 ]; then
     echo "No arguments were given"
     echo "Usage: `basename $0` \"command to be executed on all ring servers\""
