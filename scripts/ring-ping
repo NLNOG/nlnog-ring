@@ -1,19 +1,32 @@
 #!/usr/bin/env bash
 
 ping="ping"
-if [ "$1" = "-6" ]; then
-    ping="ping6"
-    shift
-elif [ -n "${1//[^:]}" ]; then
-    ping="ping6"
-fi
+
+while getopts "6vh" flag; do
+    case $flag in
+	6)
+	    ping="ping6"
+	    ;;
+	v)
+	    verbose=1
+	    ;;
+	*)
+	    echo "Usage: $(basename $0) [-6v] host"
+	    exit 1
+	    ;;
+    esac
+done
+
+shift $((OPTIND-1))
 
 if [ $# -lt 1 ]; then
-    echo "Usuage: $(basename $0) [-6] host"
+    echo "Usage: $(basename $0) [-6v] host"
     exit 1
 fi
 
 host=$1
+[ -n "${host//[^:]}" ] && ping="ping6"
+
 
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)'"
 ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
@@ -33,9 +46,12 @@ while read line; do
     if [ -n "${output}" ]; then
 	time=`echo $output | cut -f6 -d/`
 	replies=( ${replies[@]} ${time} )
+	[ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: $time
     else
 	timeouts=( ${timeouts[@]} $server )
+	[ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: timeout
     fi
+
 done < <(echo "$SERVERS" | xargs -P10 -n1 -I{} sh -c "${ssh_cmd}||:")
 
 if [ -n "${replies[*]}" ]; then
