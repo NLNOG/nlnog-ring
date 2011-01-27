@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Written by Job Snijders <job@snijders-it.nl>
 
 import sys
 import dns.resolver
