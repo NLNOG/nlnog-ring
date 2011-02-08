@@ -47,7 +47,7 @@ while read line; do
     if [ -n "${output}" ]; then
 	time=`echo $output | cut -f6 -d/`
 	replies=( ${replies[@]} ${time} )
-	[ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: $time
+	[ -n "${verbose}" ] && printf "%-30s %s\n" ${server}: $time
     else
 	timeouts=( ${timeouts[@]} $server )
 	[ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: timeout
