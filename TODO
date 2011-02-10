@@ -1,7 +1,6 @@
 Priority 1:
 
     - setup ring signed .deb repo, spread key with puppet (peter / edwin)
-    - arrange tcpdump without sudo http://seclists.org/tcpdump/2010/q2/30
     - modify ping, traceroute so they can run without sudo with ICMP
       traceroute  (peter)
     - figure out how to deal with email (central smtp.ring.nlnog.net?) 
