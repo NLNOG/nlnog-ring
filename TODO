@@ -1,6 +1,5 @@
 Priority 1:
 
-    - setup ring signed .deb repo, spread key with puppet (peter / edwin)
     - modify ping, traceroute so they can run without sudo with ICMP
       traceroute  (peter)
     - figure out how to deal with email (central smtp.ring.nlnog.net?) 
