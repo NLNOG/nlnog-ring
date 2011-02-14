@@ -12,6 +12,8 @@ Priority 2:
       push back) (martin)
     - switch from webrick to passanger for puppet (job - when master becomes
       to slow)
+    - whitelist all ip addresses of ring-nodes and ring-admins in fail2ban
+      ssh blocker
 
 Priority 3:
  
