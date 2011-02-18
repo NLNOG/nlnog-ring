@@ -2,13 +2,14 @@ Priority 1:
 
     - modify ping, traceroute so they can run without sudo with ICMP
       traceroute  (peter)
-    - figure out how to deal with email (central smtp.ring.nlnog.net?) 
+    - figure out how to deal with email (central smtp.ring.nlnog.net?)
+    - backups of master to external host 
 
 Priority 2:
 
-    - push mail configuration so root@ on a machien is forwarded to ring-admins
+    - push mail configuration so root@ on a machine is forwarded to ring-admins
       and the owner
-    - improve ssh key distribution (fetch keys from all nodes, merge, and
+    - improve ssh user key distribution (fetch keys from all nodes, merge, and
       push back) (martin)
     - switch from webrick to passanger for puppet (job - when master becomes
       to slow)
@@ -20,7 +21,8 @@ Priority 3:
     - fix standard MOTD stating information like the the hostname, 
     owner/admin and ASN
     - logging of all commands, maybe use http://freshmeat.net/projects/snoopy_logger
-    - setup up proper ssh host key distribution through puppet 
+    - setup up proper ssh host key distribution through puppet
+    - monitoring (nagios?) 
 
 Priority 4:
 
