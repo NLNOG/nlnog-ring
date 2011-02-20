@@ -3,7 +3,6 @@ Priority 1:
     - modify ping, traceroute so they can run without sudo with ICMP
       traceroute  (peter)
     - figure out how to deal with email (central smtp.ring.nlnog.net?)
-    - backups of master to external host 
 
 Priority 2:
 
