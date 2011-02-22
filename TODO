@@ -14,6 +14,10 @@ Priority 2:
       to slow)
     - whitelist all ip addresses of ring-nodes and ring-admins in fail2ban
       ssh blocker
+    - feature: ./ring-lb-test $node1 $node2
+        this will start a udp listener on node2 and send 10 packets from
+        node1 to node2:port, if some packets consistently do not arrive
+        maybe something funky is going on somewhere in an etherchannel
 
 Priority 3:
  
