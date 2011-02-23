@@ -8,6 +8,8 @@ Priority 1:
             - make fact who is the admin of the machine
             - retrieve ~$admin/.ssh/authorized_keys from the homemachine
                 -> distribute to all other ringnodes
+    - monitoring (nagios? puppetmaster process needs to be monitored too) 
+
 Priority 2:
 
     - push mail configuration so root@ on a machine is forwarded to ring-admins
@@ -27,7 +29,6 @@ Priority 3:
     owner/admin and ASN
     - logging of all commands, maybe use http://freshmeat.net/projects/snoopy_logger
     - setup up proper ssh host key distribution through puppet
-    - monitoring (nagios?) 
 
 Priority 4:
 
