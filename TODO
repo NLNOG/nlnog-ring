@@ -9,6 +9,8 @@ Priority 1:
             - retrieve ~$admin/.ssh/authorized_keys from the homemachine
                 -> distribute to all other ringnodes
     - monitoring (nagios? puppetmaster process needs to be monitored too) 
+    - http://freshmeat.net/projects/sshfp/
+        ssh keys in DNS
 
 Priority 2:
 
