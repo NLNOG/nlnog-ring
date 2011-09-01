@@ -51,3 +51,10 @@ adduser $organisation admin
 # done!
 # now is probably a good time for a reboot
 reboot
+
+# add node to /etc/smokeping/config.d/Targets.header on master
+# then run puppet on master to update its local smokeping config
+puppetd --test
+
+# restart smokeping on all node
+ring-all sudo -i /etc/init.d/smokeping restart
