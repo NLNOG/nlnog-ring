@@ -28,6 +28,7 @@ apt-get update
 apt-get install puppet puppet-common
 
 # add the new node to /etc/puppet/manifests/nodes.pp and /etc/puppet/files/etc/hosts on the master
+# add node owner to /etc/puppet/manifests/ring-users.pp on the master
 
 # run puppet and make sure you sign the cert on the master
 puppetd --test
