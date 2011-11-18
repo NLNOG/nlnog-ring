@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Written by Job Snijders <job@snijders-it.nl>
+# Modified by Sten Spans <sten@snore.nl>
+
+if [ $# -lt 1 ]; then
+    echo "No arguments were given"
+    echo "Usage: `basename $0` \"command to be executed on all ring servers\""
+    exit 1
+fi
+
+SERVERS=$(dig -t txt +short ring.nlnog.net)
+SERVERS=${SERVERS//'"'/}
+
+for host in $SERVERS
+do
+    echo "host: $host.ring.nlnog.net"
+    ssh -q -o ConnectTimeout=2 -t $host.ring.nlnog.net $@
+    ret=$?
+    if [ "$ret" = 255 ]; then
+    echo "ERROR: ssh connection failed"
+    elif [ "$ret" != 0 ]; then
+    echo "ERROR: remote command failed"
+    fi
+done

@@ -1,24 +1,125 @@
-#!/usr/bin/env bash
-# Written by Job Snijders <job@snijders-it.nl>
-# Modified by Sten Spans <sten@snore.nl>
+#!/usr/bin/env ruby
 
-if [ $# -lt 1 ]; then
-    echo "No arguments were given"
-    echo "Usage: `basename $0` \"command to be executed on all ring servers\""
-    exit 1
-fi
+# ytti@iki.fi
 
-SERVERS=$(dig -t txt +short ring.nlnog.net)
-SERVERS=${SERVERS//'"'/}
+module Ring
+require 'resolv'
+require 'open3'
+require 'thwait'
+require 'etc'
+Domain  = 'ring.nlnog.net'
+Timeout = 10
+SSH     = 'ssh -q -t '
+User    = Etc.getlogin
+Date    = Time.now.utc.strftime '%Y-%m-%d %H:%M:%S (UTC)'
 
-for host in $SERVERS
-do
-    echo "host: $host.ring.nlnog.net"
-    ssh -q -o ConnectTimeout=2 -t $host.ring.nlnog.net $@
-    ret=$?
-    if [ "$ret" = 255 ]; then
-    echo "ERROR: ssh connection failed"
-    elif [ "$ret" != 0 ]; then
-    echo "ERROR: remote command failed"
-    fi
-done
+# Do we want ConnectTimeout? It'll cause thread to end gracefully,
+# so we are unaware it didn't finish, unless we check return value in popen3
+#SSH     = 'ssh -q -o ConnectTimeout=2 -t '
+
+# returns list of ring nodes
+def self.nodes
+  # this assumes two or more replies
+  replies = Resolv::DNS.open.getresources Ring::Domain, Resolv::DNS::Resource::IN::TXT
+  nodes = replies.map do |reply|
+    reply.strings.first.split ' '
+  end
+  nodes.flatten
+  #%w(tdc01 widexs01 duocast01)
+end
+
+# runs ssh to each node in parallel, returns hash with nodes as keys and array of output and end time
+def self._all cmd, timeout=Timeout
+  output = {}
+  end_time = {}
+  threads = []
+  Ring.nodes.each do |node|
+    threads << [Thread.new { end_time[node] = Ring.ssh node, cmd, output }, node]
+  end
+  if timeout == 0
+    ThreadsWait.new(threads.map{ |t| t.first} ).all_waits
+  else
+    start = Time.now
+    sleep 0.1 while threads.any? { |t| t.first.alive? } and start+timeout > Time.now
+  end
+  unfinished = []
+  threads.each { |t| unfinished << t.last if t.first.alive? }
+  [output, end_time, unfinished]
+end
+
+# runs command via ssh in node and returns array containing output in array and time when finished
+def self.ssh node, cmd, output
+  cmd = Ring::SSH + [node, cmd].join(' ')
+  output[node] = []
+  Open3.popen3(cmd) do |stdin, stdout, stderr, wait_thr|
+    while line = stdout.gets
+      output[node] << line
+    end
+  end
+  Time.now
+end
+
+# runs command in each node, reporting if command was success and latency of node
+def self.health
+  start = Time.now
+  (all 'echo xyzzy42').each do |node, result|
+    output, stop = result
+    puts '%23s %s %.3fs' % [node, output=%w(xyzzy42\n) ? 'ACK' : 'NAK', stop-start]
+  end
+end
+
+# outputs ssh command of each node
+def self.all cmd, timeout=Timeout
+  start = Time.now
+  output, end_time, unfinished = _all cmd, timeout
+
+  puts str = 'RING report - ' + cmd
+  puts '=' * str.size
+  puts
+  puts '* Executed on behalf of: ' + Ring::User
+  puts '* Date: ' + Ring::Date
+  puts "* Executed on #{output.size} nodes, #{unfinished.size} node(s) timed-out or were unreachable."
+  output.each do |node, output|
+    puts
+    
+    delay = unfinished.index(node) ? 'timeout' : '%.3f' % (end_time[node]-start) + 's'
+    puts s = '%s (%s) - \'%s\'' % [node, delay, cmd]
+    puts '-' * s.size
+    puts
+    output.each {|line| puts ' ' * 4 + line}
+  end
+  #puts "Unfinished (timeout #{timeout}s): " + unfinished.join(', ') if unfinished.size > 0
+end
+
+# I really didn't intend this to be CLI, but library, but silly front-end included
+class CLI
+  def initialize
+    require 'optparse'
+    cfg = {
+     :timeout => Timeout,
+    }
+    args = nil
+    begin
+      cfg, args = parseOptions cfg
+    rescue => e
+      puts "Error: " + e
+      exit 
+    end
+    Ring.all args.join(' '), cfg[:timeout]
+  end
+
+  def parseOptions cfg
+    opts = OptionParser.new do |opt|
+      opt.banner = 'Usage: ' + $0 + ' [options] <cmd>'
+      opt.on('-t', '--timeout [TIMEOUT]', 'set timeout, default is ' + Ring::Timeout.to_s) { |v| cfg[:timeout] = v.to_i }
+      opt.on_tail('-h', '--help', 'show this message') { puts opt; exit }
+    end
+    args = opts.order!
+    raise ArgumentError, 'parameter missing, try --help' unless args.size > 0
+    [cfg, args]
+  end
+end
+
+end
+
+Ring::CLI.new if __FILE__ == $0
