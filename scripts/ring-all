@@ -12,6 +12,8 @@ Timeout = 10
 SSH     = 'ssh -q -t '
 User    = Etc.getlogin
 Date    = Time.now.utc.strftime '%Y-%m-%d %H:%M:%S (UTC)'
+NodeCMD = %x(dig ring.nlnog.net txt +short +tcp|tr -d '"'|tr ' ' '\n')
+
 
 # Do we want ConnectTimeout? It'll cause thread to end gracefully,
 # so we are unaware it didn't finish, unless we check return value in popen3
@@ -20,11 +22,12 @@ Date    = Time.now.utc.strftime '%Y-%m-%d %H:%M:%S (UTC)'
 # returns list of ring nodes
 def self.nodes
   # this assumes two or more replies
-  replies = Resolv::DNS.open.getresources Ring::Domain, Resolv::DNS::Resource::IN::TXT
-  nodes = replies.map do |reply|
-    reply.strings.first.split ' '
-  end
-  nodes.flatten
+  ##replies = Resolv::DNS.open.getresources Ring::Domain, Resolv::DNS::Resource::IN::TXT
+  ##nodes = replies.map do |reply|
+  ##  reply.strings.first.split ' '
+  ##end
+  ##nodes.flatten
+  NodeCMD.split "\n"
   #%w(tdc01 widexs01 duocast01)
 end
 
