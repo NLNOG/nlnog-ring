@@ -37,7 +37,7 @@ fi
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)'"
 ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
-SERVERS=$(dig -t txt +short ring.nlnog.net | tr -d '"' | tr ' ' '\n')
+SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
 declare -a results
 declare -a replies
