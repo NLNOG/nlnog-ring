@@ -1,0 +1,336 @@
+#! /usr/bin/env python
+"""
+ ring-trace     perform a series of mtr's towards one destination
+                and visualise the results by generating an image
+
+ Author:        Teun Vink  - teun@teun.tv
+ Requirements:  dnspython, graphviz
+"""
+
+import sys, os, threading, argparse, tempfile, time, random, re
+
+try:
+    from dns.resolver import query
+    from dns import name, reversename
+    from dns.exception import DNSException
+except:
+    print "dnspython seems to be missing. Please install it.\n"
+    sys.exit(1)
+
+
+VERSION="0.9.9 - written by Teun Vink <teun@teun.tv>"
+DEBUG=False
+
+colors = []
+
+class TraceThread(threading.Thread):
+
+    def __init__(self, host, destination, user, proto, udp):
+        self.starttime = time.time()
+        self.host = host
+        self.dest = destination
+        self.user = user
+        self.proto = proto
+        self.udp = udp
+        self.result  = ""
+        threading.Thread.__init__(self)
+
+    
+    def run(self):
+        # run the mtr command
+        cmd = "ssh %s %s.ring.nlnog.net \"mtr %s -c1 -r -n %s %s\"" % (
+            "-l %s" % self.user if self.user != "" else "",
+            self.host, self.proto, 
+            "-u" if self.udp else "",
+            self.dest,
+        )
+        f = os.popen(cmd)
+        lines = [l.strip() for l in f.readlines()][1:]
+        f.close()
+
+        # lookup the IP for the host
+        qstr = "%s.ring.nlnog.net" % self.host
+        qtype = "A"
+
+        # IPv6 literal or forced IPv6
+        if (":" in self.dest) or (self.proto == "-6"):
+            qtype="AAAA"
+
+        # check if the host has an AAAA record
+        if qtype == "A":
+            try:
+                query(self.dest, "AAAA")
+                qtype = "AAAA"
+            except:
+                qtype = "A"
+
+        try:
+            qres = query(qstr, qtype)
+        except:
+            qres = [qstr]
+
+        # add the host as first hop so the graphs are easier to understand
+        lines.insert(0, "0. %s" % qres[0]) 
+        
+        self.result = lines
+
+        debug("host %s done in %.1f seconds." % (self.host, time.time() - self.starttime))
+
+
+    def get_result(self):
+        return self.result
+
+
+def fix_dest(dest, ipv4, ipv6):
+    """Determine the appopriate IP for the destination
+    """
+
+    # no preference -> return label so we allow resolving at the nodes
+    if not ipv4 and not ipv6:
+        return dest
+
+    try:
+        qres = query(dest, "A" if ipv4 else "AAAA")
+        return str(qres.rrset[0])
+    except DNSException:
+        # failed to do a lookup, return the original label instead
+        # could be triggered by -4 or -6 flag on an IP address
+        return dest
+
+
+def get_hostlist():
+    """Get a list of all ring hosts.
+    """
+    hosts = []
+    try:
+        # TCP query required due to the large TXT record
+        qres = query("ring.nlnog.net", "TXT", tcp=True)
+        for rr in qres:
+            for s in rr.strings:
+                for srv in s.split(' '):
+                    hosts.append(srv)
+    except DNSException, e:
+        return []
+
+    return hosts
+
+
+def traceroutes(hosts, destination, user, proto, udp):
+    """Perform all traceroutes.
+    """
+
+    result = {}
+    threads = {}
+    
+    # launch all threads
+    for host in hosts:
+        threads[host] = TraceThread(host, destination, user, proto, udp)
+        threads[host].start()
+
+    # wait for all threads to end
+    for host in hosts:
+        threads[host].join()
+
+    # gather all results
+    for host in hosts:
+        result[host] = threads[host].get_result()
+
+    return result
+
+
+def resolve(traceroutes, resolve):
+    """Lookup ASNs and FQDNs.
+    """
+
+    aslist = {}
+    fqdnlist = {} 
+
+    for host in traceroutes.keys():
+
+        ips = [x.split(" ")[1] for x in traceroutes[host]]
+        for ip in ips:
+                if (ip != '???' and aslist.get(ip, 'unknown') == 'unknown'):
+                    try:
+                        r = reversename.from_address(ip)
+                        qstr = "%s.origin%s.asn.cymru.com" % (
+                            ".".join(r.to_text().split('.')[:-3]),
+                            "6" if ":" in ip else "",
+                        )
+                        qres = query(qstr, "TXT")
+                        asn = qres[0].strings[0].split(' ')[0]
+                        aslist[ip] = asn
+                    except:
+                        aslist[ip] = 'unknown'
+
+        if resolve or len(ips) == 0:
+            lookups = ips
+        else:
+            lookups = [ips[0], ips[-1]]
+            
+        for ip in lookups:
+           if (ip != '???' and fqdnlist.get(ip, 'unknown') == 'unknown'):
+               try:
+                   qres = query(reversename.from_address(ip).to_text(), 'PTR')
+                   fqdn = qres[0].to_text()
+                   fqdnlist[ip] = fqdn
+               except:
+                   fqdnlist[ip] = 'unknown'
+
+    return (aslist, fqdnlist)
+
+
+def graph(traces, destination, aslist, fqdnlist, resolve):
+    """Generate the entire graph.
+    """
+
+    result = "digraph G {"
+    count = 0
+    for host in traces.keys():
+        ips = [x.split(" ")[1] for x in traces[host]]
+
+        nodes = ""
+        edges = ""
+
+        for index in range(0, len(ips)):
+            nodes = "%s node%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s%s\\n(AS %s)\"]" % (
+                nodes,
+                ips[index].replace(':','_').replace('?', 'X').replace('.', '_'),
+                colors[count % len(colors)] if (index ==0) else "black",
+                ips[index],
+                "\\n%s" % fqdnlist.get(ips[index], "unknown") if (index == 0 or resolve) else "",
+                aslist.get(ips[index], 'unknown')
+            )
+
+            if index < len(ips)-1:
+                edges = "%s node%s -> node%s [color=\"%s\"] " % (
+                    edges, 
+                    ips[index].replace(':','_').replace('?','X').replace('.','_'),
+                    ips[index + 1].replace(':','_').replace('?','X').replace('.','_'),
+                    colors[count % len(colors)]
+                )
+        result = "%s %s %s " % (result, nodes, edges)
+        count += 1
+    result = "%s }" % result
+
+    return result
+
+
+def make_image(dot, outfile, outtype):
+    """Make the actual image by running 'dot' on the generated graphviz code
+    """
+    fh, fname = tempfile.mkstemp(prefix='trace_')
+    try:
+        f = os.fdopen(fh, 'w')
+        f.write(dot + "\n")
+        f.close()
+    except:
+        print "failed to create temporary file: %s" % fname
+        sys.exit(1)
+       
+    try:
+        f = os.popen("/usr/bin/dot -T%s -o%s %s" % (outtype, outfile, fname))
+        f.close()
+    except:
+        print "failed to exec 'dot': /usr/bin/dot -T%s -o%s %s" % (outtype, outfile, fname)
+        sys.exit(1)
+
+    try:
+        os.unlink(fname)
+    except:
+        print "failed to clean up temporary file: %s" % fname
+
+
+def debug(msg):
+    """Print a string only if debugging is enabled.
+    """
+    if DEBUG:
+        print "[%s] %s" % (time.strftime('%H:%M:%S'), msg)
+
+
+if __name__ == "__main__":
+    start = time.time()
+    
+    print "ring-trace v%s" % VERSION
+    
+    debug('gathering list of hosts to query.')
+    hosts = get_hostlist() 
+    hosts.sort()
+    debug("%d hosts available" % len(hosts))
+
+    parser = argparse.ArgumentParser(description="Perform a series of mtr's using the nlnog ring and visualise the results.\n\nAvailable hosts (%d): %s" % (len(hosts), " ".join(hosts)), epilog="Visit http://ring.nlnog.net for more information.", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("destination", help="destination of the traces")
+    parser.add_argument("-e", "--exclude", action="append", dest="exclude", help="exclude this host", default=[])
+    parser.add_argument("-i", "--include", action="append", dest="include", help="include this host", default=[])
+    parser.add_argument('-n', '--random', action='store', dest='random', default=0, type=int,  help='pick a given number of hosts at random')
+    parser.add_argument("-o", "--output", action="store", dest="outfile", help="output filename (trace-DESTINATION.type by default)", default="")
+    parser.add_argument('-r', '--resolve', action='store_const', dest='resolve', default=False, const=True,  help='try to resolve all addresses (WARNING: can take long!)')
+    parser.add_argument('-t', '--type', action='store', dest='outtype', choices=('gif', 'pdf', 'png', 'jpg', 'ps', 'svg'), default='jpg', help='output filetype (jpg by default)')
+    parser.add_argument("-u", "--user", action="store", dest="user", help="username for SSH logins", default="")
+    parser.add_argument("-U", "--udp", action="store_const", dest="udp", help="use UDP instead of ICMP ECHO", const=True, default=False)
+    parser.add_argument("-v", "--verbose", action="store_const", dest="debug", help="verbose mode", const=True, default=False)
+    proto = parser.add_mutually_exclusive_group()
+    proto.add_argument("-4", "--ipv4", action="store_const", dest="ipv4", help="enforce IPv4", const=True, default=False)
+    proto.add_argument("-6", "--ipv6", action="store_const", dest="ipv6", help="enforce IPv6", const=True, default=False)
+    ns = parser.parse_args()
+    DEBUG=ns.debug
+
+    debug("debugging enabled.")
+    proto = ""
+    if (ns.ipv4):
+        debug('Enforcing IPv4')
+        proto="-4"
+    elif (ns.ipv6):
+        debug('Enforcing IPv6')
+        proto="-6"
+    destination = fix_dest(ns.destination, ns.ipv4, ns.ipv6)
+
+    traces = {}
+
+    if (ns.random):
+        newlist = []
+        if (ns.random >0 and ns.random < len(hosts)):
+            for x in range(ns.random):
+                i = random.randint(0, len(hosts) - 1)
+                newlist.append(hosts[i])
+                hosts.remove(hosts[i])
+        hosts = newlist
+        print "picked %d host%s at random: %s" % (len(hosts), "s" if (ns.random > 1) else "", " ".join(hosts))
+
+    if len(ns.exclude) > 0:
+        for host in ns.exclude:
+            if host in hosts:
+                hosts.remove(host)
+        print "Excluding %d hosts: %s" % (len(ns.exclude), " ".join(ns.exclude))
+
+    if len(ns.include) > 0:
+        for host in ns.include:
+            if host not in hosts:
+                hosts.append(host)
+        print "Including %d hosts: %s" % (len(ns.include), " ".join(ns.include))
+
+    debug('generating color table')
+    for c in range(0x333333, 0xdddddd, 0xaaaaaa/len(hosts)):
+        colors.append("#%x" % c)
+
+    print "Performing %s traceroutes towards %s from %d ring hosts." % (
+        "UDP" if ns.udp else "ICMP",
+        ns.destination, len(hosts))
+    debug('performing traces.')
+    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp)
+
+    debug('looking up hostnames and ASNs.')
+    if ns.resolve:
+        print "Looking up all IP addresses and ASNs, this may take quite a while."
+    (aslist, fqdnlist) = resolve(traces, ns.resolve)
+
+    debug('generating graphs.')
+    dot = graph(traces, destination, aslist, fqdnlist, ns.resolve)
+
+    debug('generating output file.')
+    outfile = ns.outfile
+
+    if outfile == "":
+        outfile = "trace-%s.%s" % (ns.destination, ns.outtype)
+    make_image(dot, outfile, ns.outtype)
+
+    print "Created %s in %.1f seconds." % (outfile, time.time() - start)
