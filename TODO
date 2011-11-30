@@ -16,7 +16,7 @@ Priority 2:
 
     - push mail configuration so root@ on a machine is forwarded to ring-admins
       and the owner
-   - switch from webrick to passanger for puppet (job - when master becomes
+    - switch from webrick to passenger for puppet (job - when master becomes
       to slow)
     - whitelist all ip addresses of ring-nodes and ring-admins in fail2ban
       ssh blocker
@@ -24,6 +24,9 @@ Priority 2:
         this will start a udp listener on node2 and send 10 packets from
         node1 to node2:port, if some packets consistently do not arrive
         maybe something funky is going on somewhere in an etherchannel
+    - ring-wide pastebin (private pastes, random URLs, https)
+    - image support for pastebin
+    - install ring-trace ringwide and make it use the image pastebin
 
 Priority 3:
  
