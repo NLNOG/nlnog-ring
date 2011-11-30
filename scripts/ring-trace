@@ -4,12 +4,10 @@
                 and visualise the results by generating an image
 
  Author:        Teun Vink  - teun@teun.tv
- Requirements:  dnspython, graphviz
-
- On ubuntu: apt-get install graphviz python-dns python-argparse
+ Requirements:  dnspython, graphviz, argparse
 """
 
-import sys, os, threading, argparse, tempfile, time, random, re
+import sys, os, threading, tempfile, time, random, re
 
 try:
     from dns.resolver import query
@@ -19,28 +17,37 @@ except:
     print "dnspython seems to be missing. Please install it.\n"
     sys.exit(1)
 
+try:
+    import argparse
+except:
+    print"argparse module for python is missing. Please install it.\n"
+    sys.exit(1)
 
-VERSION="0.9.9 - written by Teun Vink <teun@teun.tv>"
-DEBUG=False
+
+VERSION="1.0.1 - written by Teun Vink <teun@teun.tv>"
+DEBUG=0
 
 colors = []
 
 class TraceThread(threading.Thread):
 
-    def __init__(self, host, destination, user, proto, udp):
+    def __init__(self, host, destination, user, proto, udp, timeout):
         self.starttime = time.time()
         self.host = host
         self.dest = destination
         self.user = user
         self.proto = proto
         self.udp = udp
+        self.timeout = timeout
         self.result  = ""
         threading.Thread.__init__(self)
 
     
     def run(self):
         # run the mtr command
-        cmd = "ssh %s %s.ring.nlnog.net \"mtr %s -c1 -r -n %s %s\"" % (
+        cmd = "ssh %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s -c1 -r -n %s %s\"" % (
+            "-v" if DEBUG > 1 else "",
+            self.timeout,
             "-l %s" % self.user if self.user != "" else "",
             self.host, self.proto, 
             "-u" if self.udp else "",
@@ -117,7 +124,7 @@ def get_hostlist():
     return hosts
 
 
-def traceroutes(hosts, destination, user, proto, udp):
+def traceroutes(hosts, destination, user, proto, udp, timeout):
     """Perform all traceroutes.
     """
 
@@ -126,7 +133,7 @@ def traceroutes(hosts, destination, user, proto, udp):
     
     # launch all threads
     for host in hosts:
-        threads[host] = TraceThread(host, destination, user, proto, udp)
+        threads[host] = TraceThread(host, destination, user, proto, udp, timeout)
         threads[host].start()
 
     # wait for all threads to end
@@ -267,16 +274,18 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", action="store", dest="outfile", help="output filename (trace-DESTINATION.type by default)", default="")
     parser.add_argument('-r', '--resolve', action='store_const', dest='resolve', default=False, const=True,  help='try to resolve all addresses (WARNING: can take long!)')
     parser.add_argument('-t', '--type', action='store', dest='outtype', choices=('gif', 'pdf', 'png', 'jpg', 'ps', 'svg'), default='jpg', help='output filetype (jpg by default)')
+    parser.add_argument("-T", "--timeout", action='store', dest='timeout', default=10, type=int, help="SSH connection timeout in seconds (10 by default)")
     parser.add_argument("-u", "--user", action="store", dest="user", help="username for SSH logins", default="")
     parser.add_argument("-U", "--udp", action="store_const", dest="udp", help="use UDP instead of ICMP ECHO", const=True, default=False)
-    parser.add_argument("-v", "--verbose", action="store_const", dest="debug", help="verbose mode", const=True, default=False)
+    parser.add_argument("-v", "--verbose", action="store_const", dest="debug", help="verbose mode", const=1, default=0)
+    parser.add_argument("-vv", "--extra-verbose", action="store_const", dest="debug2", help="verbose mode", const=2, default=0)
     proto = parser.add_mutually_exclusive_group()
     proto.add_argument("-4", "--ipv4", action="store_const", dest="ipv4", help="enforce IPv4", const=True, default=False)
     proto.add_argument("-6", "--ipv6", action="store_const", dest="ipv6", help="enforce IPv6", const=True, default=False)
     ns = parser.parse_args()
-    DEBUG=ns.debug
+    DEBUG=max(ns.debug, ns.debug2)
 
-    debug("debugging enabled.")
+    debug("debugging enabled, level %d." % DEBUG)
     proto = ""
     if (ns.ipv4):
         debug('Enforcing IPv4')
@@ -314,11 +323,11 @@ if __name__ == "__main__":
     for c in range(0x333333, 0xdddddd, 0xaaaaaa/len(hosts)):
         colors.append("#%x" % c)
 
-    print "Performing %s traceroutes towards %s from %d ring hosts." % (
+    print "Performing %s traceroutes towards %s from %d ring hosts, ssh-timeout is %d seconds." % (
         "UDP" if ns.udp else "ICMP",
-        ns.destination, len(hosts))
+        ns.destination, len(hosts), ns.timeout)
     debug('performing traces.')
-    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp)
+    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout)
 
     debug('looking up hostnames and ASNs.')
     if ns.resolve:
