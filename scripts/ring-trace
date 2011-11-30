@@ -5,6 +5,8 @@
 
  Author:        Teun Vink  - teun@teun.tv
  Requirements:  dnspython, graphviz
+
+ On ubuntu: apt-get install graphviz python-dns python-argparse
 """
 
 import sys, os, threading, argparse, tempfile, time, random, re
