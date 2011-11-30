@@ -2,22 +2,16 @@ Priority 1:
 
     - modify ping, traceroute so they can run without sudo with ICMP
       traceroute  (peter)
-    - figure out how to deal with email (central smtp.ring.nlnog.net?)
     - improve ssh user key distribution (fetch keys from all nodes, merge, and
       push back) (martin)
             - make fact who is the admin of the machine
             - retrieve ~$admin/.ssh/authorized_keys from the homemachine
                 -> distribute to all other ringnodes
-    - monitoring (nagios? puppetmaster process needs to be monitored too) 
     - http://freshmeat.net/projects/sshfp/
         ssh keys in DNS
 
 Priority 2:
 
-    - push mail configuration so root@ on a machine is forwarded to ring-admins
-      and the owner
-    - switch from webrick to passenger for puppet (job - when master becomes
-      to slow)
     - whitelist all ip addresses of ring-nodes and ring-admins in fail2ban
       ssh blocker
     - feature: ./ring-lb-test $node1 $node2
