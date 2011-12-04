@@ -7,7 +7,7 @@
  Requirements:  dnspython, graphviz, argparse
 """
 
-import sys, os, threading, tempfile, time, random, re, operator
+import sys, os, threading, tempfile, time, random, re, operator, itertools
 
 try:
     from dns.resolver import query
@@ -24,7 +24,7 @@ except:
     sys.exit(1)
 
 
-VERSION="1.1.0 - written by Teun Vink <teun@teun.tv>"
+VERSION="1.2.0 - written by Teun Vink <teun@teun.tv>"
 DEBUG=0
 
 colors = []
@@ -80,7 +80,7 @@ class TraceThread(threading.Thread):
 
         # add the host as first hop so the graphs are easier to understand
         lines.insert(0, "0. %s" % qres[0]) 
-        
+
         self.result = lines
 
         debug("host %s done in %.1f seconds." % (self.host, time.time() - self.starttime))
@@ -185,10 +185,20 @@ def resolve(traceroutes, resolve):
                except:
                    fqdnlist[ip] = 'unknown'
 
-    return (aslist, fqdnlist)
+    asnames = {}
+    # make list of asnames
+    for a in aslist.values():
+        try:
+            if not a in asnames.keys():
+                qres = query("as%s.asn.cymru.com" % a, "TXT")
+                asnames[a] = qres[0].strings[0].split('|')[4].strip().split(' ')[0]
+        except:
+            pass
+
+    return (aslist, asnames, fqdnlist)
 
 
-def graph(traces, destination, aslist, fqdnlist, resolve):
+def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn):
     """Generate the entire graph.
     """
 
@@ -196,27 +206,55 @@ def graph(traces, destination, aslist, fqdnlist, resolve):
     count = 0
     for host in traces.keys():
         ips = [x.split(" ")[1] for x in traces[host]]
-
+        
         nodes = ""
         edges = ""
 
-        for index in range(0, len(ips)):
-            nodes = "%s node%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s%s\\n(AS %s)\"]" % (
-                nodes,
-                ips[index].replace(':','_').replace('?', 'X').replace('.', '_'),
-                colors[count % len(colors)] if (index ==0) else "black",
-                ips[index],
-                "\\n%s" % fqdnlist.get(ips[index], "unknown") if (index == 0 or resolve) else "",
-                aslist.get(ips[index], 'unknown')
-            )
+        if asn:
+            # asns instead of ips
+            a = [aslist.get(ip, 'unknown') for ip in ips]
+            # remove unkown entries
+            while 'unknown' in a:
+                a.remove('unknown')
+            # make a list of the asns, showing each asn only once
+            asns = [key for key,i in itertools.groupby(a)]
 
-            if index < len(ips)-1:
-                edges = "%s node%s -> node%s [color=\"%s\"] " % (
-                    edges, 
-                    ips[index].replace(':','_').replace('?','X').replace('.','_'),
-                    ips[index + 1].replace(':','_').replace('?','X').replace('.','_'),
-                    colors[count % len(colors)]
+            for index in range(0, len(asns)):
+                nodes = "%s node%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%sAS %s\\n(%s)\" %s]" % (
+                    nodes,
+                    asns[index],
+                    colors[count % len(colors)] if (index ==0) else "black",
+                    "%s\\n" % host if index == 0 else "",
+                    asns[index],
+                    asnames.get(asns[index], 'unknown'),
+                    "style=filled fillcolor=\"#eeeeee\" " if index ==len(asns)-1 else "white",
                 )
+
+                if index < len(asns)-1:
+                    edges = "%s node%s -> node%s [color=\"%s\"] " % (
+                        edges, 
+                        asns[index],
+                        asns[index + 1],
+                        colors[count % len(colors)]
+                    )
+        else:
+            for index in range(0, len(ips)):
+                nodes = "%s node%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s%s\\n(AS %s)\"]" % (
+                    nodes,
+                    ips[index].replace(':','_').replace('?', 'X').replace('.', '_'),
+                    colors[count % len(colors)] if (index ==0) else "black",
+                    ips[index],
+                    "\\n%s" % fqdnlist.get(ips[index], "unknown") if (index == 0 or resolve) else "",
+                    aslist.get(ips[index], 'unknown')
+                )
+
+                if index < len(ips)-1:
+                    edges = "%s node%s -> node%s [color=\"%s\"] " % (
+                        edges, 
+                        ips[index].replace(':','_').replace('?','X').replace('.','_'),
+                        ips[index + 1].replace(':','_').replace('?','X').replace('.','_'),
+                        colors[count % len(colors)]
+                    )
         result = "%s %s %s " % (result, nodes, edges)
         count += 1
     result = "%s }" % result
@@ -268,6 +306,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Perform a series of mtr's using the nlnog ring and visualise the results.\n\nAvailable hosts (%d): %s" % (len(hosts), " ".join(hosts)), epilog="Visit http://ring.nlnog.net for more information.", formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", help="destination of the traces")
+    parser.add_argument("-a", "--asn", action="store_const", dest="asn", help="group by ASN", default=False, const=True)
     parser.add_argument("-e", "--exclude", action="append", dest="exclude", help="exclude this host", default=[], metavar="HOST")
     parser.add_argument("-i", "--include", action="append", dest="include", help="include this host", default=[], metavar="HOST")
     parser.add_argument('-n', '--random', action='store', dest='random', default=0, type=int,  help='pick a given number of hosts at random')
@@ -355,10 +394,10 @@ if __name__ == "__main__":
     debug('looking up hostnames and ASNs.')
     if ns.resolve:
         print "Looking up all IP addresses and ASNs, this may take quite a while."
-    (aslist, fqdnlist) = resolve(traces, ns.resolve)
+    (aslist, asnames, fqdnlist) = resolve(traces, ns.resolve)
 
     debug('generating graphs.')
-    dot = graph(traces, destination, aslist, fqdnlist, ns.resolve)
+    dot = graph(traces, destination, aslist, asnames, fqdnlist, ns.resolve, ns.asn)
 
     debug('generating output file.')
     outfile = ns.outfile
