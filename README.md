@@ -1,6 +1,8 @@
 NLNOG RING servers
+==================
 
 MOTIVATION:
+-----------
 
 I've noticed that there are a lot of friendly 'shell access' exchange deals 
 between dutch network operators. This makes it easier for parties to debug 
@@ -20,10 +22,12 @@ networks and quickly get the results instead of waiting till somebody has
 the time to run some tests for you. 
 
 FOR UP TO DATE INFORMATION PLEASE VISIT: 
-    
-    http://ring.nlnog.net/
+----------------------------------------
+
+    [http://ring.nlnog.net/]
 
 CONTACT: 
+--------
 
 A non-exhaustive list of people involved in designing and managing the nlnog
 ring project: Peter van Dijk, Teun Vink, Edwin Hermans, Martin Pels and me. 
