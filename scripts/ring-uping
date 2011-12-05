@@ -2,7 +2,6 @@
 
 $VERBOSE = true
 module Ring
-$: << "/home/#{ENV['USER']}/ring"
 require 'ring'
 require 'socket'
 require 'resolv'
@@ -16,7 +15,7 @@ class UPing
   ReadBuffer = 100
   Port       = 32768 + rand(28232)
   Interval   = 0.001
-  Script     = 'ring/ring-uping'
+  Script     = '/usr/local/bin/ring-uping'
   Timeout    = 3
   Colours    = {
     :end     => "\e[0;39m",
