@@ -30,8 +30,8 @@ class All
     threads = []
     Ring.nodes.each do |node|
       ssh_all[:output][node] = []
-      #threads << [Thread.new { ssh_all[:exit_status][node], ssh_all[:end_time][node] = Ring::SSH.run node, cmd, ssh_all[:output][node] }, node]
-      threads << [Thread.new { ssh_all[:exit_status][node], ssh_all[:end_time][node] = Ring::Open.ssh node, cmd, ssh_all[:output][node] }, node]
+      threads << [Thread.new { ssh_all[:exit_status][node], ssh_all[:end_time][node] = Ring::SSH.run node, cmd, ssh_all[:output][node] }, node]
+      #threads << [Thread.new { ssh_all[:exit_status][node], ssh_all[:end_time][node] = Ring::Open.ssh node, cmd, ssh_all[:output][node] }, node]
     end
     if timeout == 0
       sleep 0.1 while threads.any? { |t| t.first.alive? }
