@@ -24,7 +24,7 @@ the time to run some tests for you.
 FOR UP TO DATE INFORMATION PLEASE VISIT: 
 ----------------------------------------
 
-    [http://ring.nlnog.net/]
+[http://ring.nlnog.net/]
 
 CONTACT: 
 --------
