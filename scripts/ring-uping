@@ -1,0 +1,216 @@
+#!/usr/bin/env ruby
+
+$VERBOSE = true
+module Ring
+require 'ring'
+require 'socket'
+require 'resolv'
+require 'thread'
+class UPing
+  $stdout.sync = true
+  class NothingReceived < StandardError; end
+  class BreakFromPeer < StandardError; end
+  attr_reader :output
+  Count      = 10
+  ReadBuffer = 100
+  Port       = 32768 + rand(28232)
+  Interval   = 0.001
+  Script     = '/usr/local/bin/ring-uping'
+  Timeout    = 3
+  Colours    = {
+    :end     => "\e[0;39m",
+    :loss    => "\e[1;31m",
+    :ror     => "\e[1;32m",
+  }
+
+  def self.send cfg
+    socket, pkt = UDPSocket.new, 0
+    socket.connect cfg[:peer], cfg[:port]
+    count = 0
+    cfg[:count].times do
+      count += 1
+      socket.send [Time.now.to_f.to_s, pkt+=1].join('-'), 0
+      sleep cfg[:interval].to_f unless cfg[:count] == count
+    end
+  end
+
+  def self.receive cfg, opt={}
+    pkt_want, output, status, ror, ready = 1, [], :ok, false, false
+    wait_interval = cfg[:interval].to_f < 0.2 ? 0.2 : cfg[:interval].to_f + 0.2 
+    end_time = Time.now + wait_interval
+    # should awe also handle this, if remote is receiver? It's bit complex
+    trap("SIGINT") { uping_print_aggregate output, cfg, ror; exit 42 }
+    socket = UDPSocket.new
+    socket.bind 0, cfg[:port]
+    puts "listening" if opt[:remote]
+    while end_time.to_f > Time.now.to_f
+      while select([socket], nil, nil, 2)
+        data = socket.recvfrom_nonblock Ring::UPing::ReadBuffer
+        time, pkt = data.first.split '-'
+        latency = (Time.now.to_f - time.to_f) * 1000
+        pkt = pkt.to_i
+        if pkt == pkt_want
+          status = :ok
+          pkt_want += 1
+        elsif pkt < pkt_want
+          # TODO: should we handle duplicates? Now they are RORs too
+          status, ror = :ror, true
+        else
+          status = :loss
+          pkt_want = pkt+1
+        end
+        output << [pkt, latency, status]
+        uping_print [pkt, latency, status], cfg unless opt[:no_print]
+        end_time = Time.now + wait_interval
+        (end_time = 0; break) if pkt_want > cfg[:count]
+      end
+    end
+    uping_print_aggregate output, cfg, ror unless opt[:no_print]
+    output
+  end
+
+  def self.myip
+    UDPSocket.open {|s| s.connect('8.8.8.8', 1); s.addr.last }
+  end
+
+  def self.peer_cmd cmd, cfg, lock=false
+    Ring::SSH.run cfg[:peer], "#{Ring::UPing::Script} #{cmd}" do |line|
+      line = line.first
+      if lock and line == "listening\n"
+        lock.unlock
+      elsif not cfg[:rx]
+        puts line
+      end
+    end
+  end
+
+  private 
+
+  def self.uping_print data, cfg
+    pkt, latency, status = data
+    colour = case status
+    when :ror
+      cfg[:mu][:ror]
+    when :loss
+      cfg[:mu][:loss]
+    else
+      ''
+    end
+    puts '   %s%5d - %.3fms%s'  % [colour, pkt, latency, cfg[:mu][:end]]
+  end
+
+  def self.uping_print_aggregate pkts, cfg, ror
+    raise NothingReceived if pkts.size == 0
+    lat_tot = pkts.inject(0){|t,c|c[1]+t}
+    lat_avr = (lat_tot / pkts.size) 
+    lat_max = pkts.inject(0){|t,c|(t==0 or t<c[1]) ? c[1] : t}
+    lat_min = pkts.inject(0){|t,c|(t==0 or t>c[1]) ? c[1] : t}
+    colour = ''
+    colour = cfg[:mu][:loss] if cfg[:count]-pkts.size > 0 or ror
+    ror = ror ? ' and reordering' : ''
+    cfg[:peer] = Resolv.getname cfg[:peer] rescue cfg[:peer]
+    puts '--- %s -> %s statistics ---' % [cfg[:peer], cfg[:local_name]]
+    puts '%s%s transmitted, %s received, %s lost%s%s' % [colour, cfg[:count], pkts.size, cfg[:count]-pkts.size, ror, cfg[:mu][:end]]
+    puts 'latency min/avr/max = %.3f/%.3f/%.3f ms' % [lat_min, lat_avr, lat_max]
+  end
+
+  class CLI
+    require 'optparse'
+    def initialize
+      cfg = {
+        :port     => Ring::UPing::Port,
+        :interval => Ring::UPing::Interval,
+        :count    => Ring::UPing::Count,
+        :local    => Ring::UPing.myip,
+        :colour   => true,
+        :rx       => true,
+      }
+      cfg[:local_name] = Resolv.getname cfg[:local] rescue cfg[:local]
+      cfg, args = parse_options cfg
+      raise ArgumentError, 'peer not defined' if args.size < 1 if not cfg[:remote]
+      cfg[:peer] = args.shift
+      if cfg[:remote]
+        if cfg[:rx] == true
+          # send remotely
+          cmd = build_command_line cfg
+          Ring::UPing.send cfg
+        else
+          # receive remotely
+          cmd = build_command_line cfg
+          Ring::UPing.receive cfg, :remote=>true
+        end
+      else
+        host_pair = [cfg[:peer], cfg[:local_name]]
+        puts "Sending %s -> %s, %s packets at %.3fs interval" % [cfg[:rx] ? host_pair : host_pair.reverse, cfg[:count], cfg[:interval]].flatten
+        Thread.abort_on_exception = true
+        if cfg[:rx] == true
+          # receive locally
+          cmd = build_command_line cfg
+          thread = Thread.new { Ring::UPing.peer_cmd cmd, cfg }
+          Ring::UPing.receive cfg
+          sleep 0.1 while thread.alive?
+        else
+          # send locally
+          cmd = build_command_line cfg
+          lock = Ring::Lock.new
+          thread = Thread.new { Ring::UPing.peer_cmd cmd, cfg, lock }
+          begin
+            sleep 0.1 while lock.locked?
+            Ring::UPing.send cfg
+          rescue Errno::ECONNREFUSED
+            sleep 0.1
+            retry
+          end
+          sleep 0.1 while thread.alive?
+        end
+      end
+    end
+
+    private
+
+    def build_command_line cfg
+      cmd = '--port %s -i %s -c %s' % [cfg[:port], cfg[:interval], cfg[:count]]
+      cmd << ' --no-colour' if not cfg[:colour]
+      cmd << ' -s' if not cfg[:rx]
+      cmd << (cfg[:rx] ? ' send' : ' receive') if not cfg[:remote]
+      cmd << ' ' + cfg[:local]
+    end
+
+    def parse_options cfg
+      remote = ''
+      opts = OptionParser.new do |opt|
+        opt.banner = 'Usage: ' + $0 + ' [options] <peer>'
+        opt.on('--port PORT', 'set port, default is random ephemeral port') {|v|cfg[:port]=v.to_i}
+        opt.on('-i', '--interval INTERVAL', 'set packet interval, default is ' + cfg[:interval].to_s) {|v|cfg[:interval]=v.to_f}
+        opt.on('-c', '--count COUNT', 'set packet count, default is ' + cfg[:count].to_s) {|v|cfg[:count]=v.to_i}
+        opt.on('--no-colour', 'turn off ansi colour') {cfg[:colour]=false}
+        opt.on('-s', '--send', 'send packets to peer, instead receive') {cfg[:rx]=false}
+        opt.on_tail('-h', '--help', 'show this message') {puts opt; exit}
+      end
+      args = opts.parse!
+      case arg = args.shift
+      when 'send'
+        cfg[:remote] = :send
+      when 'receive'
+        cfg[:remote] = :receive
+      else
+        args.unshift arg
+      end
+      raise ArgumentError, 'Invalid packet count' if cfg[:count] < 1
+      raise ArgumentError, 'Too low interval' if cfg[:interval] < 0.001
+      raise ArgumentError, 'Too high interval' if cfg[:interval] > 60
+      cfg[:interval] = "%f" % cfg[:interval]
+      cfg[:mu] = cfg[:colour] ? Ring::UPing::Colours : {}
+      [cfg, args.compact]
+    end
+  end
+end
+end
+
+if __FILE__ == $0
+  begin
+    Ring::UPing::CLI.new
+  #rescue Exception => e
+  #  puts 'Error: ' + e.to_s
+  end
+end
