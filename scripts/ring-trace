@@ -4,7 +4,7 @@
                 and visualise the results by generating an image
 
  Author:        Teun Vink  - teun@teun.tv
- Requirements:  dnspython, graphviz, argparse
+ Requirements:  dnspython, graphviz, argparse, ipcalc
 """
 
 import sys, os, threading, tempfile, time, random, re, operator, itertools
@@ -13,21 +13,30 @@ try:
     from dns.resolver import query
     from dns import name, reversename
     from dns.exception import DNSException
-except:
-    print "dnspython seems to be missing. Please install it.\n"
-    sys.exit(1)
-
-try:
     import argparse
+    from ipaddr import IPv4Address, IPv6Address, IPv4Network, IPv6Network
 except:
-    print"argparse module for python is missing. Please install it.\n"
+    print "ERROR: one or more of the following python packages is missing:"
+    print "dnspython, argparse, ipaddr\n"
+    print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
     sys.exit(1)
 
-
-VERSION="1.2.0 - written by Teun Vink <teun@teun.tv>"
+VERSION="1.3.0 - written by Teun Vink <teun@teun.tv>"
 DEBUG=0
 
 colors = []
+
+ixps4 = [
+    "195.69.144.0/22",          # AMS-IX
+    "80.81.192.95/22",          # DE-CIX
+    "195.66.224.0/22",          # LINX
+    "193.239.116.33/23",        # NL-ix
+]
+
+ixps6 = [
+    "2001:7f8::/29",            # generic IXP
+]
+
 
 class TraceThread(threading.Thread):
 
@@ -198,7 +207,7 @@ def resolve(traceroutes, resolve):
     return (aslist, asnames, fqdnlist)
 
 
-def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn):
+def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn, no_ixp):
     """Generate the entire graph.
     """
 
@@ -206,6 +215,20 @@ def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn):
     count = 0
     for host in traces.keys():
         ips = [x.split(" ")[1] for x in traces[host]]
+
+        # remove IXP addresses if wanted
+        if no_ixp:
+            for ip in ips:
+                if ":" in ip and ip != "???":
+                    for ix in ixps6:
+                        if IPv6Address(ip) in IPv6Network(ix):
+                            debug("Removing %s from trace since it is an IXP address." % ip)
+                            ips.remove(ip)
+                elif ip != "???":
+                    for ix in ixps4:
+                        if IPv4Address(ip) in IPv4Network(ix):
+                            ips.remove(ip)
+                            debug("Removing %s from trace since it is an IXP address." % ip)
         
         nodes = ""
         edges = ""
@@ -227,7 +250,7 @@ def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn):
                     "%s\\n" % host if index == 0 else "",
                     asns[index],
                     asnames.get(asns[index], 'unknown'),
-                    "style=filled fillcolor=\"#eeeeee\" " if index ==len(asns)-1 else "white",
+                    "style=filled fillcolor=\"#eeeeee\" " if index ==len(asns)-1 else "",
                 )
 
                 if index < len(asns)-1:
@@ -245,7 +268,7 @@ def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn):
                     colors[count % len(colors)] if (index ==0) else "black",
                     ips[index],
                     "\\n%s" % fqdnlist.get(ips[index], "unknown") if (index == 0 or resolve) else "",
-                    aslist.get(ips[index], 'unknown')
+                    aslist.get(ips[index], 'unknown'),
                 )
 
                 if index < len(ips)-1:
@@ -304,7 +327,13 @@ if __name__ == "__main__":
     hosts.sort()
     debug("%d hosts available" % len(hosts))
 
-    parser = argparse.ArgumentParser(description="Perform a series of mtr's using the nlnog ring and visualise the results.\n\nAvailable hosts (%d): %s" % (len(hosts), " ".join(hosts)), epilog="Visit http://ring.nlnog.net for more information.", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Perform a series of mtr's using the nlnog ring and visualise the results.\n\nAvailable hosts (%d): %s" % (
+            len(hosts), 
+            " ".join(hosts)
+        ), 
+        epilog="Visit http://ring.nlnog.net for more information.", 
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", help="destination of the traces")
     parser.add_argument("-a", "--asn", action="store_const", dest="asn", help="group by ASN", default=False, const=True)
     parser.add_argument("-e", "--exclude", action="append", dest="exclude", help="exclude this host", default=[], metavar="HOST")
@@ -319,6 +348,7 @@ if __name__ == "__main__":
     parser.add_argument("-U", "--udp", action="store_const", dest="udp", help="use UDP instead of ICMP ECHO", const=True, default=False)
     parser.add_argument("-v", "--verbose", action="store_const", dest="debug", help="verbose mode", const=1, default=0)
     parser.add_argument("-vv", "--extra-verbose", action="store_const", dest="debug2", help="extra verbose mode (SSH debugging)", const=2, default=0)
+    parser.add_argument("-x", "--exclude-ixp", action="store_const", dest="no_ixp", help="remove IXP hops from traces", const=True, default=False)
     proto = parser.add_mutually_exclusive_group()
     proto.add_argument("-4", "--ipv4", action="store_const", dest="ipv4", help="enforce IPv4", const=True, default=False)
     proto.add_argument("-6", "--ipv6", action="store_const", dest="ipv6", help="enforce IPv6", const=True, default=False)
@@ -397,7 +427,7 @@ if __name__ == "__main__":
     (aslist, asnames, fqdnlist) = resolve(traces, ns.resolve)
 
     debug('generating graphs.')
-    dot = graph(traces, destination, aslist, asnames, fqdnlist, ns.resolve, ns.asn)
+    dot = graph(traces, destination, aslist, asnames, fqdnlist, ns.resolve, ns.asn, ns.no_ixp)
 
     debug('generating output file.')
     outfile = ns.outfile
