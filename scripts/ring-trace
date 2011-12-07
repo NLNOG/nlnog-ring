@@ -31,6 +31,8 @@ ixps4 = [
     "80.81.192.95/22",          # DE-CIX
     "195.66.224.0/22",          # LINX
     "193.239.116.33/23",        # NL-ix
+    "193.109.219.0/24",         # Lipex
+    "193.203.5.0/24",           # Lonap
 ]
 
 ixps6 = [
@@ -54,7 +56,7 @@ class TraceThread(threading.Thread):
     
     def run(self):
         # run the mtr command
-        cmd = "ssh %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s -c1 -r -n %s %s\"" % (
+        cmd = "ssh %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s --report-wide -c1 -r -n %s %s\"" % (
             "-v" if DEBUG > 1 else "",
             self.timeout,
             "-l %s" % self.user if self.user != "" else "",
@@ -338,7 +340,7 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--asn", action="store_const", dest="asn", help="group by ASN", default=False, const=True)
     parser.add_argument("-e", "--exclude", action="append", dest="exclude", help="exclude this host", default=[], metavar="HOST")
     parser.add_argument("-i", "--include", action="append", dest="include", help="include this host", default=[], metavar="HOST")
-    parser.add_argument('-n', '--random', action='store', dest='random', default=0, type=int,  help='pick a given number of hosts at random')
+    parser.add_argument('-n', '--random', action='store', dest='random', default=-1, type=int,  help='pick a given number of hosts at random')
     parser.add_argument("-o", "--output", action="store", dest="outfile", help="output filename (trace-DESTINATION.type by default)", default="")
     parser.add_argument("-p", "--hops", action="store", dest="hops", metavar="N", type=int, help="pick top N and bottom N hosts based on hopcount", default=0)
     parser.add_argument('-r', '--resolve', action='store_const', dest='resolve', default=False, const=True,  help='try to resolve all addresses (WARNING: can take long!)')
@@ -367,15 +369,15 @@ if __name__ == "__main__":
 
     traces = {}
 
-    if (ns.random):
+    if (ns.random >= 0 and ns.random < len(hosts)):
         newlist = []
-        if (ns.random >0 and ns.random < len(hosts)):
-            for x in range(ns.random):
-                i = random.randint(0, len(hosts) - 1)
-                newlist.append(hosts[i])
-                hosts.remove(hosts[i])
+        for x in range(ns.random):
+            i = random.randint(0, len(hosts) - 1)
+            newlist.append(hosts[i])
+            hosts.remove(hosts[i])
         hosts = newlist
-        print "picked %d host%s at random: %s" % (len(hosts), "s" if (ns.random > 1) else "", " ".join(hosts))
+        if ns.random > 0:
+            print "picked %d host%s at random: %s" % (len(hosts), "s" if (ns.random > 1) else "", " ".join(hosts))
 
     if len(ns.exclude) > 0:
         for host in ns.exclude:
