@@ -21,7 +21,7 @@ except:
     print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
     sys.exit(1)
 
-VERSION="1.3.0 - written by Teun Vink <teun@teun.tv>"
+VERSION="1.3.1 - written by Teun Vink <teun@teun.tv>"
 DEBUG=0
 
 colors = []
@@ -224,13 +224,16 @@ def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn, no_ixp):
                 if ":" in ip and ip != "???":
                     for ix in ixps6:
                         if IPv6Address(ip) in IPv6Network(ix):
-                            debug("Removing %s from trace since it is an IXP address." % ip)
-                            ips.remove(ip)
+                            while ip in ips:
+                                debug("Removing %s from trace since it is an IXP address." % ip)
+                                ips.remove(ip)
                 elif ip != "???":
                     for ix in ixps4:
                         if IPv4Address(ip) in IPv4Network(ix):
                             ips.remove(ip)
-                            debug("Removing %s from trace since it is an IXP address." % ip)
+                            while ip in ips:
+                                debug("Removing %s from trace since it is an IXP address." % ip)
+                                ips.remove(ip)
         
         nodes = ""
         edges = ""
