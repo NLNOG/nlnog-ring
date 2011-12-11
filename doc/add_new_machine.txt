@@ -24,6 +24,8 @@ echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
 # install puppet
 
 echo "deb http://master.ring.nlnog.net/deb maverick main" >> /etc/apt/sources.list
+apt-get install curl
+curl http://ring.nlnog.net/ring.key | apt-key add -
 apt-get update
 apt-get install puppet puppet-common
 
