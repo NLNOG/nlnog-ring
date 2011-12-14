@@ -1,32 +1,26 @@
 # These steps are required to add a machine to the ring
 # update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node
 
+# edit files/etc/hosts in the puppet repo and push it to master01
+
 # check if cpu is 64 bit - if not please report to the owner of the machine
 # that we do not support 32 bit machines in the ring
 lscpu
 
-# update the system and add some basic packages
-apt-get update
-apt-get dist-upgrade
-# obviously replace $org with organization name
+# replace $org with organization name
 echo "$org01.ring.nlnog.net" > /etc/hostname
 hostname -F /etc/hostname
-
-# ensure timezone is correct
-dpkg-reconfigure tzdata
-
-# check date
-date
 
 # add /etc/hosts 
 echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
 
 # install puppet
 
-echo "deb http://master.ring.nlnog.net/deb maverick main" >> /etc/apt/sources.list
 apt-get install curl
 curl http://ring.nlnog.net/ring.key | apt-key add -
+curl http://ring.nlnog.net/sources.list > /etc/apt/sources.list
 apt-get update
+apt-get dist-upgrade
 apt-get install puppet puppet-common
 
 # add the new node to /etc/puppet/manifests/nodes.pp and /etc/puppet/files/etc/hosts on the master
@@ -38,9 +32,6 @@ puppetd --test
 
 # run puppet to see if it works (try it twice, to make sure)
 puppetd --test
-
-# if all is good enable puppet in /etc/default/puppet
-/etc/init.d/puppet start
 
 # ring-admin users exist (for puppet has behaved well) you can delete the
 # rootpassword and clean up the nlnog install user. 
@@ -54,9 +45,3 @@ adduser $organisation admin
 # now is probably a good time for a reboot
 reboot
 
-# add node to /etc/smokeping/config.d/Targets.header on master
-# then run puppet on master to update its local smokeping config
-puppetd --test
-
-# restart smokeping on all node
-ring-all sudo -i /etc/init.d/smokeping restart
