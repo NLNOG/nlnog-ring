@@ -38,9 +38,6 @@ puppetd --test
 passwd --delete root
 deluser --remove-home nlnog
 
-# add the owner of the machine to the admin group so he can manage parts of his machine
-# we do this manually because puppet isnt perfect
-adduser $organisation admin
 # done!
 # now is probably a good time for a reboot
 reboot
