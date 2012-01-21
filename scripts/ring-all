@@ -71,14 +71,14 @@ def self.all_to_string cmd, data
   out << "%s%s%s\n" % [mu[:hl], '=' * (str.size-1), mu[:end]]
   out << '* Executed on behalf of: ' + Ring::User + "\n"
   out << '* Date: ' + Ring::Date + "\n"
-  msg = if unfinished.size == 0
-          ''
-        elsif unfinished.size == 1
-          "; one node timed out or was unreachable\n"
-        else
-          "; #{unfinished.size} nodes timed out or were unreachable\n"
-        end
-  out << "* Executed on: #{output.size} nodes" + msg
+  out << "* Executed on: #{output.size} nodes"
+  out << if unfinished.size == 0
+           "\n"
+         elsif unfinished.size == 1
+           "; one node timed out or was unreachable\n"
+         else
+           "; #{unfinished.size} nodes timed out or were unreachable\n"
+         end
   out << "* For more information about the RING, visit <http://ring.nlnog.net>\n"
   output.sort_by{|e|e[0]}.each do |node, output|
     unfinished.push node if not exit_status[node]
