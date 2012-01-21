@@ -6,6 +6,7 @@ $VERBOSE = true
 module Ring
 require 'ring'
 require 'thread'
+require 'yaml'
 
 # runs ssh to each node in parallel, returns hash with nodes as keys and array of output and end time
 class All
@@ -70,7 +71,14 @@ def self.all_to_string cmd, data
   out << "%s%s%s\n" % [mu[:hl], '=' * (str.size-1), mu[:end]]
   out << '* Executed on behalf of: ' + Ring::User + "\n"
   out << '* Date: ' + Ring::Date + "\n"
-  out << "* Executed on: #{output.size} nodes, #{unfinished.size} node(s) timed-out or were unreachable.\n"
+  msg = if unfinished.size == 0
+          ''
+        elsif unfinished.size == 1
+          "; one node timed out or was unreachable\n"
+        else
+          "; #{unfinished.size} nodes timed out or were unreachable\n"
+        end
+  out << "* Executed on: #{output.size} nodes" + msg
   out << "* For more information about the RING, visit <http://ring.nlnog.net>\n"
   output.sort_by{|e|e[0]}.each do |node, output|
     unfinished.push node if not exit_status[node]
@@ -115,7 +123,7 @@ class CLI
     if cfg[:mode]
       puts Ring::All.health
     elsif cfg[:machine]
-      p Ring::All.run args.join(' '), cfg[:timeout], true
+      puts YAML.dump Ring::All.run args.join(' '), cfg[:timeout], true
     else
       Ring.pager if Ring::All::TTY
       puts Ring::All.run args.join(' '), cfg[:timeout]
