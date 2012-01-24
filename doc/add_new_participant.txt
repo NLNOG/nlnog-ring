@@ -1,0 +1,76 @@
+# These steps are required to add a new participant to the ring
+
+# Receipt of application form: https://ring.nlnog.net/contact/application-form/
+
+# Check if we can log onto the participant's node using details from the form
+# If not, ask for login details
+
+# Execute steps from add_new_machine.txt
+
+# Upload logo to /var/www/ring.nlnog.net/HTML/images/ring-logos/
+# (rename to <owner>.png)
+# Add participant to /var/www/ring.nlnog.net/HTML/images/ring-logos/participants.js
+#  - Company name
+#  - Logo
+#  - Website
+#  - First node hostname (TODO: We should be able to add more nodes here)
+#  - ASN
+
+# Add a news entry on the website https://ring.nlnog.net/wp-admin/post-new.php
+
+Title: <Company name> joined the RING
+
+<Company name> - AS <ASN> - joined the RING today. <Company description>
+
+Users can connect to <node name>, which is located in <node location>.
+
+# Send a welcome mail to the participant
+
+From: <You>
+To: <Node owner>
+Cc: ring-admins@ring.nlnog.net
+Subject: Welcome to the RING, <company name>
+
+Dear <Company name>,
+
+The machine your provided is part of the ring now! 
+
+The following information is vital: 
+
+    - Your company's username is "<ownername>" 
+    - The user "<ownername>" has sudo rights on <node> (please don't break puppet :-)
+
+If you want to add additional ssh keys, place them on <node> in /home/<ownername>/sshkeys file and notify one of the ring-admins. One of the ring-admins will then import the sshkeys file into the configuration management system.
+
+You are welcome to join the ring-users mailinglist, which is used for announcements and discussions among RING users. You can find the list at http://mailman.ring.nlnog.net/cgi-bin/mailman/listinfo/ring-users
+
+Kind regards,
+
+<You>
+
+ps. An example ~/.ssh/config for on your workstation: 
+
+Host *.ring.nlnog.net
+ForwardAgent yes
+User <ownername>
+IdentityFile /Users/username/.ssh/id_rsa_nlnogring
+
+# Send mail to the ring-users list
+
+From: <You>
+To: ring-users@mailman.ring.nlnog.net
+Subject: <Company name> joined the RING
+
+Dear All,
+
+<Company name> - AS <ASN> - joined the RING today. <Company description>
+
+Users can connect to <node name>, which is located in <node location>.
+
+Your ssh keys have been distributed to the new ring node, and the ssh host keys of <node> have been added to /etc/ssh/ssh_known_hosts on all ring nodes. 
+
+Kind regards,
+
+<You>
+
+# Done.

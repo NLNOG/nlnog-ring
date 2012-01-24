@@ -1,11 +1,42 @@
 # These steps are required to add a machine to the ring
-# update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node
 
-# edit files/etc/hosts in the puppet repo and push it to master01
+# Prequisites:
+
+# check that the host has working ipv4 and ipv6 connectivity
 
 # check if cpu is 64 bit - if not please report to the owner of the machine
 # that we do not support 32 bit machines in the ring
 lscpu
+
+
+# DNS:
+
+# update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node (currently via Job)
+
+
+# Puppet repo:
+
+# edit the following in the puppet repo and push it to master01
+# /etc/puppet/manifests/nodes.pp
+#  - nodename
+#  - owner username
+#  - gps coordinates
+# /etc/puppet/files/etc/hosts
+#  - nodename
+#  - ipv4 address
+#  - ipv6 address
+# /etc/puppet/manifests/ring-users.pp
+#  - owner username
+#  - noc email
+#  - company name
+#  - uid (use next free)
+#  - usernames and key blobs of sshkeys
+#
+git commit -am '<your message>'
+git push && ssh master01.ring.nlnog.net sudo ring-puppet-repo-sync
+
+
+# On the host:
 
 # replace $org with organization name
 echo "$org01.ring.nlnog.net" > /etc/hostname
@@ -23,18 +54,25 @@ apt-get update
 apt-get -y dist-upgrade
 apt-get -y install puppet puppet-common
 
-# add the new node to /etc/puppet/manifests/nodes.pp and /etc/puppet/files/etc/hosts on the master
-# add node owner to /etc/puppet/manifests/ring-users.pp on the master
-
 # run puppet and make sure you sign the cert on the master
 puppetd --test
-# on the master puppetca --list to see if it's waiting, puppetca --sign --all to sign all waiting
+
+
+# On the master:
+
+puppetca --list # to see if it's waiting
+puppetca --sign --all # to sign all waiting
+
+
+# Back to the host:
 
 # run puppet to see if it works (try it twice, to make sure)
 puppetd --test
+puppetd --test
 
-# ring-admin users exist (for puppet has behaved well) you can delete the
-# rootpassword and clean up the nlnog install user. 
+# logout; then log in as a ring-admin user
+# if ring-admin users exist (for puppet has behaved well) you can delete 
+# the rootpassword and clean up the nlnog install user. 
 passwd --delete root
 deluser --remove-home nlnog
 
@@ -42,3 +80,10 @@ deluser --remove-home nlnog
 # now is probably a good time for a reboot
 reboot
 
+
+# Finalize:
+
+# Add the node to the nodes TXT record so it can be used by ring-users (currently via Job)
+# Add the node to the google map (currently via Teun)
+
+# Done.
