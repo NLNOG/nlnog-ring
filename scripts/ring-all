@@ -34,7 +34,7 @@ class All
         threads << [Thread.new do 
           begin
             ssh_all[:exit_status][node], ssh_all[:end_time][node] = Ring::SSH.run node, cmd, ssh_all[:output][node]
-          rescue Errno::ENETUNREACH, Errno::EHOSTUNREACH, Net::SSH::AuthenticationFailed, SocketError
+          rescue Errno::ENETUNREACH, Errno::EHOSTUNREACH, Net::SSH::AuthenticationFailed, SocketError, Net::SSH::HostKeyMismatch
             ssh_all[:unfinished] << node
           end
         end, node]
