@@ -54,6 +54,7 @@ Host *.ring.nlnog.net
 ForwardAgent yes
 User <ownername>
 IdentityFile /Users/username/.ssh/id_rsa_nlnogring
+IdentitiesOnly yes
 
 # Send mail to the ring-users list
 
