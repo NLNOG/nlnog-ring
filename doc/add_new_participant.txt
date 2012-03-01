@@ -33,7 +33,7 @@ Subject: Welcome to the RING, <company name>
 
 Dear <Company name>,
 
-The machine your provided is part of the ring now! 
+The machine you provided is part of the ring now! 
 
 The following information is vital: 
 
