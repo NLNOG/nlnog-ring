@@ -18,7 +18,7 @@ class SSH
  
   attr_reader :exit_status, :time
   def self.run node, cmd, output=[], user=Ring::User, &block
-    ssh = new node, cmd, output, user, &block
+    ssh = new node, cmd, output, (Net::SSH::Config.for(node)[:user] or user), &block
     [ssh.exit_status, ssh.time]
   end
   def initialize node, cmd, output, user, &block

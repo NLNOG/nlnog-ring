@@ -50,9 +50,7 @@ echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
 apt-get -y install curl
 curl https://ring.nlnog.net/ring.key | apt-key add -
 curl https://ring.nlnog.net/sources.list > /etc/apt/sources.list
-apt-get update
-apt-get -y dist-upgrade
-apt-get -y install puppet puppet-common
+apt-get update; apt-get -y dist-upgrade; apt-get -y install puppet puppet-common
 
 # run puppet and make sure you sign the cert on the master
 puppetd --test
