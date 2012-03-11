@@ -10,4 +10,4 @@ then
     ssh-agent -a $SSH_AUTH_SOCK
     ssh-add $keyfile
 fi
-ssh -A $1
+ssh -A $@
