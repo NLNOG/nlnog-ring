@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Written by Martin Pels <martin@rodecker.nl>
+
+keyfile=~/.ssh/nlnog.key
+agentfile=/tmp/nlnog_sshagent
+
+export SSH_AUTH_SOCK=$agentfile
+if [ ! -S $agentfile ];
+then 
+    ssh-agent -a $SSH_AUTH_SOCK
+    ssh-add $keyfile
+fi
+ssh -A $1
