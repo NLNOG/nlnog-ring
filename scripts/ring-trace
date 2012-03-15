@@ -5,19 +5,31 @@
 
  Author:        Teun Vink - teun@teun.tv
 
- Requirements:  python, dnspython, graphviz, argparse, ipcalc, pycurl
+ Requirements:  python, dnspython, graphviz, argparse, ipcalc
 
  Changelog:
- v1.4           add pastebin option (-b)
-                add more IXP ranges to check
-                add support for default config in configfile
+ v1.5           rewrote IP lookup code (DNS/ASN)
+                code cleanup
+                optimizations for simpler graphs
+                fixed coloring of first hop
+                added flag for highlighting IXP hops (-X)
+                added flag for ignoring broken hops (-B)
+                added flag for showing IP country info (-c)
+                added title to graph
+                added new layout options (-l)
+                fix warning for failed upload to pastebin
+                added 'dot' output type
+                added more IPv6 IXP ranges
+ v1.4           added pastebin option (-b)
+                added more IXP ranges to check
+                added support for default config in configfile
                 minor fixes in debug output
- v1.3           add IXP ignore option (-x)
- v1.2           add group-by-asn option (-a)
+ v1.3           added IXP ignore option (-x)
+ v1.2           added group-by-asn option (-a)
 """
 
 import sys, os, threading, tempfile, time, random, re, operator, itertools
-import urllib, urllib2
+import urllib, urllib2, socket
 
 try:
     from dns.resolver import query
@@ -29,10 +41,10 @@ try:
 except:
     print "ERROR: one or more of the following python packages is missing:"
     print "dnspython, argparse, ipaddr\n"
-    print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr python-pycurl"
+    print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
     sys.exit(1)
 
-VERSION="1.4.0"
+VERSION="1.5.0"
 DEBUG=0
 PASTEBIN="https://ring.nlnog.net/paste/"
 CONFIGFILE=os.path.expanduser("~/.ringtrace.cfg")
@@ -40,281 +52,406 @@ CONFIGFILE=os.path.expanduser("~/.ringtrace.cfg")
 colors = []
 
 ixps4 = [
-   "195.69.144.0/22", # AMS-IX
-   "80.81.192.95/22", # DE-CIX
-   "195.66.224.0/22", # LINX
-   "193.239.116.33/23", # NL-ix
-   "193.109.219.0/24", # Lipex
-   "193.203.5.0/24", # Lonap
-   "206.223.115.0/24", #Equinix Ashburn
-   "206.223.119.0/25", #Equinix Chicago
-   "206.223.118.0/25", #Equinix Dallas
-   "206.223.123.0/25", #Equinix Los Angeles
-   "206.223.119.0/24", #Equinix San Jose
-   "198.32.176.0/24", #Equinix Palo Alto
-   "198.32.182.0/24", #Equinix Atlanta
-   "198.32.190.0/24", #Equinix Vienna, VA
-   "198.32.134.0/24", #Equinix Seattle
-   "198.32.118.0/24", #Equinix New York
-   "198.32.180.0/24", #SIX
-   "198.32.160.0/24", #NYIIX
-   "198.32.187.0/24", #MAE East
-   "198.32.200.0/24", #MAE West
-   "198.32.124.0/23", #NOTA
-   "198.32.139.0/24", #MAE Central
-   "198.32.212.0/24", #WAIX
-   "198.32.132.0/24", #Telx Atlanta
-   "198.32.146.0/24", #LAIIX
-   "198.32.245.0/24", #TorIX
-   "198.32.178.0/24", #MXP
-   "194.42.48.0/24", #Equinix Zurich
-   "198.32.129.0/24", #SFIX
-   "192.65.185.0/24", #CIXP
-   "194.68.129.0/24", #SFINX
-   "217.29.66.0/24", #MIX-IT
-   "213.228.3.128/25", #FreeIX
-   "198.32.247.0/24", #PARIX
-   "198.32.229.0/24", #NYCX
-   "202.40.161.0/24", #HKIX
-   "210.62.255.0/24", #TWIX
-   "202.0.91.0/24", #Manila IX
-   "193.1.29.192/27", #INEX LAN1
-   "193.203.0.0/25", #VIX
-   "217.79.160.0/23", #XchangePoint
-   "192.145.251.0/24", #KINX
-   "193.188.137.0/24", #BiX
-   "193.25.170.0/23", #RBIEX
-   "212.121.32.0/19", #Edge-IX
-   "195.85.203.0/24", #FreeBIX
-   "194.53.172.0/25", #BNIX
-   "194.242.34.14/25", #SwissIX
-   "213.234.0.0/25", #CATNIX
-   "193.149.0.0/24", #ESPANIX
-   "198.32.131.0/24", #KD-X
-   "80.67.175.0/26", #Pouix
-   "195.140.149.129/25", #FNIX6
-   "194.153.157.192/26", #Lyonix
-   "194.68.123.0/24", #NetNod Stockholm
-   "194.68.128.0/24", #NetNod Stockholm
-   "194.50.100.0/24", #NIX CZ
-   "194.59.190.0/24", #INXS
-   "213.238.34.0/24", #WORK-IX
-   "193.111.172.0/24", #GN-IX
-   "193.168.127.0/24", #LIX
-   "192.38.7.0/24", #DIX
-   "198.17.46.0/24", #SD-NAP
-   "207.231.241.0/24", #PacificWave
-   "193.156.90.0/24", #NIX
-   "192.108.148.0/24", #SIX.SK
-   "193.108.98.0/24", #NDIX
-   "193.178.185.0/24", #B-CIX
-   "210.184.127.0/24", #iAIX
-   "144.92.233.224/28", #MadIX
-   "195.245.196.0/24", #MAD-IX
-   "194.146.118.0/24", #ECIX Duesseldorf
-   "202.167.228.0/24", #Equinix Sydney
-   "195.85.195.0/24", #WIX
-   "195.242.64.0/23", #UNION IXP
-   "193.232.244.0/22", #MSK-IX
-   "218.100.2.0/24", #PIPE Networks Sydney
-   "194.85.177.0/24", #SPB-IX
-   "69.51.84.0/26", #NWIX Helena
-   "69.51.84.128/26", #NWIX Missoula
-   "218.100.0.0/24", #PIPE Networks Brisbane
-   "218.100.13.0/24", #PIPE Networks Melbourne
-   "218.100.19.0/24", #PIPE Networks Canberra
-   "218.100.12.0/24", #PIPE Networks Hobart
-   "194.116.96.0/19", #TOP-IX
-   "62.35.254.0/24", #PaNAP
-   "193.201.28.0/23", #NaMeX
-   "192.77.55.0/25", #QiX 3
-   "193.189.82.0/24", #KleyReX
-   "198.32.146.0/24", #CIIX (formerly LAAP)
-   "218.100.6.0/24", #BBIX
-   "198.32.162.0/24", #OIX
-   "193.110.12.0/24", #SOL-IX / SOLIX
-   "193.110.13.0/24", #SOL-IX / SOLIX
-   "193.108.17.0/24", #SOL-IX / SOLIX
-   "198.32.142.0/24", #JINX
-   "198.32.185.0/24", #PHX-IX
-   "195.85.217.0/24", #N-IX
-   "198.32.198.0/24", #TampaIX
-   "206.223.143.0/24", #CoreSite - Any2 Los Angeles
-   "194.165.32.0/24", #GIX Gothenburg
-   "80.67.163.0/24", #GEIX
-   "198.32.238.0/24", #BigApe
-   "208.50.192.0/24", #IXNM
-   "202.78.121.0/24", #BAYANTEL
-   "83.245.126.0/30", #PacketExchange
-   "85.31.223.0/24", #MA-IX
-   "195.60.84.128/25", #MerieX
-   "198.32.195.0/24", #NWAX
-   "83.245.126.0/23", #eXpress
-   "203.190.230.0/24", #Equinix Tokyo
-   "198.32.252.0/24", #AMPATH
-   "194.54.92.0/25", #OCIX Duesseldorf
-   "194.50.181.0/24", #STHIX
-   "200.0.17.0/24", #CABASE
-   "194.116.188.0/24", #TIX-LAN
-   "195.137.179.0/24", #TLLIX
-   "194.68.130.0/24", #Netnod Gothenburg
-   "195.69.116.0/24", #Netnod Gothenburg
-   "195.69.117.0/24", #Netnod Malmo
-   "195.69.118.0/24", #Netnod Malmo
-   "194.68.133.0/24", #Netnod Sundsvall
-   "194.68.135.0/24", #Netnod Sundsvall
-   "206.223.127.0/25", #PIX Vancouver
-   "206.223.139.0/26", #PIX Montreal
-   "206.223.127.128/25", #PIX Toronto
-   "198.32.202.0/24", #NIXI Delhi
-   "192.168.100.0/24", #YRIX
-   "206.51.40.0/24", #CoreSite - Any2 DC
-   "206.51.44.0/24", #CoreSite - Any2 Miami
-   "78.41.189.128/26", #PhibIX
-   "202.125.128.0/19", #PTCL (PIE)
-   "193.189.130.0/24", #ENLIX
-   "194.9.117.0/24", #ECIX Berlin
-   "218.100.4.0/24", #IIX
-   "198.32.167.0/24", #BDIX
-   "198.32.235.0/24", #OttIX
-   "193.232.87.0/24", #NSK-IX
-   "206.51.43.0/24", #CoreSite - Any2 Chicago
-   "198.32.172.0/24", #PHOpenIX
-   "193.4.58.0/27", #RIX
-   "193.84.179.0/24", #PIX - Poznan
-   "193.243.183.64/26", #MalmIX Malmo / IXOR
-   "80.248.213.128/27", #StuffIX Paris
-   "202.249.38.0/24", #NSPIXP3
-   "218.100.48.0/24", #NIXI Chennai
-   "198.32.143.0/24", #KIXP
-   "202.97.10.0/24", #CNC Beijing NAP
-   "198.32.149.0/24", #Ottawa GigaPOP
-   "206.51.33.0/24", #ChIX
-   "92.60.70.0/24", #MINAP Milan
-   "198.32.231.0/24", #npIX
-   "80.81.202.0/24", #ALP-IX
-   "206.51.7.0/24", #KCIX Kansas City
-   "218.100.44.0/24", #MyIX
-   "206.223.124/24", #NAP Colombia - CCIT
-   "200.1.6.0/24", #NAP.EC
-   "198.32.216.0/24", #RMIX Denver
-   "195.42.144.0/24", #Equinix Paris
-   "198.32.186.0/24", #Telx Phoenix
-   "194.68.131.64/26", #Netnod Lulea
-   "212.32.128.0/25", #Norrnod
-   "200.0.22.0/23", #OCIX
-   "198.180.153.0/24", #SISPA
-   "195.182.218/23", #PLIX
-   "206.197.210.0/24", #DRF IX
-   "218.100.50.0/25", #TransACT IX
-   "86.104.125.0/24", #INTERLAN
-   "193.42.140.0/24", #TIX
-   "81.21.96.0/24", #CAIX
-   "192.168.255.0/24", #BY-IX
-   "189.45.5.0/24", #PTTMETRO Botafogo
-   "196.223.7.0/24", #MEIX
-   "195.189.188.0/25", #UppRIX
-   "195.189.189.0/25", #UppRIX
-   "195.189.188.128/25", #UppRIX
-   "195.60.93.0/26", #Crimea-IX
-   "218.100.59.0/24", #ACTIX
-   "193.42.155.0/24", #ECIX Hamburg
-   "194.107.117.0/24", #Od-IX
-   "202.158.0.0/17", #CBN Exchange Point
-   "82.148.16.0/24", #NET-IX
-   "193.156.120.0/24", #NIX2
-   "194.30.187.0/24", #Sitelix
-   "217.156.113.0/24", #RoNIX
-   "193.192.15.64/26", #CIX
-   "212.5.48.0./22", #SofiaConn
-   "200.219.144.0/24", #PTTMETRO Londrina
-   "2001:7f8:4d::/48", #ExWest
-   "193.2.141.0/24", #SIX SI
-   "89.40.130.0/24", #TomIX
-   "114.141.48.0/21", #CyberPlus
-   "195.140.192.0/24", #TREX
-   "91.213.73.0/24", #CNIX
-   "193.169.198.0/23", #BIX.BG
-   "195.2.230.0/23", #KAZ-IX
-   "91.213.236.0/24", #TOUIX
-   "206.51.41.0/24", #CoreSite - Any2 Silicon Valley
-   "83.217.20.0/26", #ULN-IX
-   "93.156.93.0/24", #TRDIX
-   "198.32.214.0/24", #CINX
-   "189.76.208.0/20", #WKVE
-   "83.212.8.0/23", #GR-IX
-   "194.85.107.0/24", #EKT-IX
-   "192.77.55.0/24", #QIX
-   "78.111.112.0/20", #GRAPESC
-   "93.91.144.0/20", #GRAPESC
-   "109.72.0.0/20", #GRAPESC
-   "188.227.0.0/22", #dataix
-   "196.223.5.0/25", #TIX - Tanzania
-   "209.33.201.176/28", #SUPRnet
-   "195.246.227.0/24", #SMILE-LV
-   "200.0.20.0/23", #CAR-IX
-   "193.136.251.96/27", #GigaPix OPorto
-   "218.100.27.0/24 ", #OpenIXP / NiCE
-   "218.100.36.0/24", #OpenIXP / NiCE
-   "193.37.144.0/24", #AAIX
-   "193.232.136.0/24", #VLV-IX
-   "193.232.135.0/24", #SMR-IX
-   "193.232.140.0/24", #RND-IX
-   "193.57.253.128/27", #REUNIX
-   "62.63.140.0/22", #LIX-LV
-   "194.88.240.0/25", #INEX LAN2
-   "193.17.78.0/24", #MD-IX
-   "192.114.62.0/23", #IIX_
-   "204.228.158.0/27", #UTOPIA
-   "194.190.119.0/24", #KZN-IX
-   "193.219.13.64/26", #LIPTAM
-   "216.72.175.0/24", #NAP Chile
-   "91.216.67.0/24", #FR-IX
-   "202.85.224.0/20", #Powernetix
-   "196.223.1.0/24", #Angola-IXP / ANG-IXP
-   "194.153.153.0/24", #UIXP
-   "193.105.163.0/24", #SOX d.o.o. Serbia
-   "198.32.136.0/24", #NASA-AIX
-   "198.32.153.0/24", #NASA-AIX
-   "198.9.201.0/24", #NASA-AIX
-   "198.9.202.0/24", #NASA-AIX
-   "218.100.70.0/24", #SGIX
-   "193.105.214.0/24", #GraX
-   "218.100.41.0/24", #BIXc
-   "91.198.176.0/24", #Fixo
-   "194.117.52.128/25", #COPHIX
-   "119.110.116.0/23", #MCIX - Matrix Networks
-   "91.212.9.0/24", #KIX
-   "91.192.104.0/23", #Lviv-IX
-   "206.223.120.0/24", #AZIX
-   "195.60.89.0/25", #CBIX
-   "212.91.0.0/22", #Thinx
-   "195.149.232.0/21", #TP-IX
-   "196.216.148.0/24", #IXPN Lagos
-   "195.191.170.0/23", #EPIX
-   "195.149.232.0/23", #TPIX
-   "188.116.45.0/24", #GIX Gdansk
-   "193.28.6.0/24", #PIRIX
-   "218.100.78.0/24", #VIC-IX
-   "206.197.131.0/24", #COIX
-   "196.223.24.0/24", #LIXP
-   "192.168.10.0/24", #MOZIX
-   "217.117.187.0/24", #KRS-IX
-   "80.81.201.0/24", #DE-CIX Duesseldorf
-   "193.105.116.0/24", #Content-IX
-   "213.184.52.0/24", #RTIX
-   "81.16.231.0/25", #Litix
-   "91.232.229.0/24", #Rheintal IX
-   "200.219.144/22", #PTTMETRO Salvador
-   "192.108.145.0/24", #SIX.SK Kosice
-   "206.123.7.0/24", #JXIX
-   "206.108.236.0/24", #Boston Internet Exchange
-   "218.100.21.0/24", #PNIX
+   # (prefix, desc, fixed-asn)
+   ("195.69.144.0/22", "AMS-IX", 1200),
+   ("80.81.192.95/22", "DE-CIX", 6695),
+   ("195.66.224.0/22", "LINX", 5459),
+   ("193.239.116.33/23", "NL-ix", 34307),
+   ("193.109.219.0/24", "Lipex", 0),
+   ("193.203.5.0/24", "Lonap", 0),
+   ("206.223.115.0/24", "Equinix Ashburn", 0),
+   ("206.223.119.0/25", "Equinix Chicago", 0),
+   ("206.223.118.0/25", "Equinix Dallas", 0),
+   ("206.223.123.0/25", "Equinix Los Angeles", 0),
+   ("206.223.119.0/24", "Equinix San Jose", 0),
+   ("198.32.176.0/24", "Equinix Palo Alto", 0),
+   ("198.32.182.0/24", "Equinix Atlanta", 0),
+   ("198.32.190.0/24", "Equinix Vienna, VA", 0),
+   ("198.32.134.0/24", "Equinix Seattle", 0),
+   ("198.32.118.0/24", "Equinix New York", 0),
+   ("198.32.180.0/24", "SIX", 0),
+   ("198.32.160.0/24", "NYIIX", 0),
+   ("198.32.187.0/24", "MAE East", 0),
+   ("198.32.200.0/24", "MAE West", 0),
+   ("198.32.124.0/23", "NOTA", 0),
+   ("198.32.139.0/24", "MAE Central", 0),
+   ("198.32.212.0/24", "WAIX", 0),
+   ("198.32.132.0/24", "Telx Atlanta", 0),
+   ("198.32.146.0/24", "LAIIX", 0),
+   ("198.32.245.0/24", "TorIX", 0),
+   ("198.32.178.0/24", "MXP", 0),
+   ("194.42.48.0/24", "Equinix Zurich", 0),
+   ("198.32.129.0/24", "SFIX", 0),
+   ("192.65.185.0/24", "CIXP", 0),
+   ("194.68.129.0/24", "SFINX", 0),
+   ("217.29.66.0/24", "MIX-IT", 0),
+   ("213.228.3.128/25", "FreeIX", 0),
+   ("198.32.247.0/24", "PARIX", 0),
+   ("198.32.229.0/24", "NYCX", 0),
+   ("202.40.161.0/24", "HKIX", 0),
+   ("210.62.255.0/24", "TWIX", 0),
+   ("202.0.91.0/24", "Manila IX", 0),
+   ("193.1.29.192/27", "INEX LAN1", 0),
+   ("193.203.0.0/25", "VIX", 0),
+   ("217.79.160.0/23", "XchangePoint", 0),
+   ("192.145.251.0/24", "KINX", 0),
+   ("193.188.137.0/24", "BiX", 0),
+   ("193.25.170.0/23", "RBIEX", 0),
+   ("212.121.32.0/19", "Edge-IX", 0),
+   ("195.85.203.0/24", "FreeBIX", 0),
+   ("194.53.172.0/25", "BNIX", 0),
+   ("194.242.34.14/25", "SwissIX", 0),
+   ("213.234.0.0/25", "CATNIX", 0),
+   ("193.149.0.0/24", "ESPANIX", 0),
+   ("198.32.131.0/24", "KD-X", 0),
+   ("80.67.175.0/26", "Pouix", 0),
+   ("195.140.149.129/25", "FNIX6", 0),
+   ("194.153.157.192/26", "Lyonix", 0),
+   ("194.68.123.0/24", "NetNod Stockholm", 0),
+   ("194.68.128.0/24", "NetNod Stockholm", 0),
+   ("194.50.100.0/24", "NIX CZ", 0),
+   ("194.59.190.0/24", "INXS", 0),
+   ("213.238.34.0/24", "WORK-IX", 0),
+   ("193.111.172.0/24", "GN-IX", 0),
+   ("193.168.127.0/24", "LIX", 0),
+   ("192.38.7.0/24", "DIX", 0),
+   ("198.17.46.0/24", "SD-NAP", 0),
+   ("207.231.241.0/24", "PacificWave", 0),
+   ("193.156.90.0/24", "NIX", 0),
+   ("192.108.148.0/24", "SIX.SK", 0),
+   ("193.108.98.0/24", "NDIX", 0),
+   ("193.178.185.0/24", "B-CIX", 0),
+   ("210.184.127.0/24", "iAIX", 0),
+   ("144.92.233.224/28", "MadIX", 0),
+   ("195.245.196.0/24", "MAD-IX", 0),
+   ("194.146.118.0/24", "ECIX Duesseldorf", 0),
+   ("202.167.228.0/24", "Equinix Sydney", 0),
+   ("195.85.195.0/24", "WIX", 0),
+   ("195.242.64.0/23", "UNION IXP", 0),
+   ("193.232.244.0/22", "MSK-IX", 0),
+   ("218.100.2.0/24", "PIPE Networks Sydney", 0),
+   ("194.85.177.0/24", "SPB-IX", 0),
+   ("69.51.84.0/26", "NWIX Helena", 0),
+   ("69.51.84.128/26", "NWIX Missoula", 0),
+   ("218.100.0.0/24", "PIPE Networks Brisbane", 0),
+   ("218.100.13.0/24", "PIPE Networks Melbourne", 0),
+   ("218.100.19.0/24", "PIPE Networks Canberra", 0),
+   ("218.100.12.0/24", "PIPE Networks Hobart", 0),
+   ("194.116.96.0/19", "TOP-IX", 0),
+   ("62.35.254.0/24", "PaNAP", 0),
+   ("193.201.28.0/23", "NaMeX", 0),
+   ("192.77.55.0/25", "QiX 3", 0),
+   ("193.189.82.0/24", "KleyReX", 0),
+   ("198.32.146.0/24", "CIIX (formerly LAAP)", 0),
+   ("218.100.6.0/24", "BBIX", 0),
+   ("198.32.162.0/24", "OIX", 0),
+   ("193.110.12.0/24", "SOL-IX / SOLIX", 0),
+   ("193.110.13.0/24", "SOL-IX / SOLIX", 0),
+   ("193.108.17.0/24", "SOL-IX / SOLIX", 0),
+   ("198.32.142.0/24", "JINX", 0),
+   ("198.32.185.0/24", "PHX-IX", 0),
+   ("195.85.217.0/24", "N-IX", 0),
+   ("198.32.198.0/24", "TampaIX", 0),
+   ("206.223.143.0/24", "CoreSite - Any2 Los Angeles", 0),
+   ("194.165.32.0/24", "GIX Gothenburg", 0),
+   ("80.67.163.0/24", "GEIX", 0),
+   ("198.32.238.0/24", "BigApe", 0),
+   ("208.50.192.0/24", "IXNM", 0),
+   ("202.78.121.0/24", "BAYANTEL", 0),
+   ("83.245.126.0/30", "PacketExchange", 0),
+   ("85.31.223.0/24", "MA-IX", 0),
+   ("195.60.84.128/25", "MerieX", 0),
+   ("198.32.195.0/24", "NWAX", 0),
+   ("83.245.126.0/23", "eXpress", 0),
+   ("203.190.230.0/24", "Equinix Tokyo", 0),
+   ("198.32.252.0/24", "AMPATH", 0),
+   ("194.54.92.0/25", "OCIX Duesseldorf", 0),
+   ("194.50.181.0/24", "STHIX", 0),
+   ("200.0.17.0/24", "CABASE", 0),
+   ("194.116.188.0/24", "TIX-LAN", 0),
+   ("195.137.179.0/24", "TLLIX", 0),
+   ("194.68.130.0/24", "Netnod Gothenburg", 0),
+   ("195.69.116.0/24", "Netnod Gothenburg", 0),
+   ("195.69.117.0/24", "Netnod Malmo", 0),
+   ("195.69.118.0/24", "Netnod Malmo", 0),
+   ("194.68.133.0/24", "Netnod Sundsvall", 0),
+   ("194.68.135.0/24", "Netnod Sundsvall", 0),
+   ("206.223.127.0/25", "PIX Vancouver", 0),
+   ("206.223.139.0/26", "PIX Montreal", 0),
+   ("206.223.127.128/25", "PIX Toronto", 0),
+   ("198.32.202.0/24", "NIXI Delhi", 0),
+   ("192.168.100.0/24", "YRIX", 0),
+   ("206.51.40.0/24", "CoreSite - Any2 DC", 0),
+   ("206.51.44.0/24", "CoreSite - Any2 Miami", 0),
+   ("78.41.189.128/26", "PhibIX", 0),
+   ("202.125.128.0/19", "PTCL (PIE)", 0),
+   ("193.189.130.0/24", "ENLIX", 0),
+   ("194.9.117.0/24", "ECIX Berlin", 0),
+   ("218.100.4.0/24", "IIX", 0),
+   ("198.32.167.0/24", "BDIX", 0),
+   ("198.32.235.0/24", "OttIX", 0),
+   ("193.232.87.0/24", "NSK-IX", 0),
+   ("206.51.43.0/24", "CoreSite - Any2 Chicago", 0),
+   ("198.32.172.0/24", "PHOpenIX", 0),
+   ("193.4.58.0/27", "RIX", 0),
+   ("193.84.179.0/24", "PIX - Poznan", 0),
+   ("193.243.183.64/26", "MalmIX Malmo / IXOR", 0),
+   ("80.248.213.128/27", "StuffIX Paris", 0),
+   ("202.249.38.0/24", "NSPIXP3", 0),
+   ("218.100.48.0/24", "NIXI Chennai", 0),
+   ("198.32.143.0/24", "KIXP", 0),
+   ("202.97.10.0/24", "CNC Beijing NAP", 0),
+   ("198.32.149.0/24", "Ottawa GigaPOP", 0),
+   ("206.51.33.0/24", "ChIX", 0),
+   ("92.60.70.0/24", "MINAP Milan", 0),
+   ("198.32.231.0/24", "npIX", 0),
+   ("80.81.202.0/24", "ALP-IX", 0),
+   ("206.51.7.0/24", "KCIX Kansas City", 0),
+   ("218.100.44.0/24", "MyIX", 0),
+   ("206.223.124/24", "NAP Colombia - CCIT", 0),
+   ("200.1.6.0/24", "NAP.EC", 0),
+   ("198.32.216.0/24", "RMIX Denver", 0),
+   ("195.42.144.0/24", "Equinix Paris", 0),
+   ("198.32.186.0/24", "Telx Phoenix", 0),
+   ("194.68.131.64/26", "Netnod Lulea", 0),
+   ("212.32.128.0/25", "Norrnod", 0),
+   ("200.0.22.0/23", "OCIX", 0),
+   ("198.180.153.0/24", "SISPA", 0),
+   ("195.182.218/23", "PLIX", 0),
+   ("206.197.210.0/24", "DRF IX", 0),
+   ("218.100.50.0/25", "TransACT IX", 0),
+   ("86.104.125.0/24", "INTERLAN", 0),
+   ("193.42.140.0/24", "TIX", 0),
+   ("81.21.96.0/24", "CAIX", 0),
+   ("192.168.255.0/24", "BY-IX", 0),
+   ("189.45.5.0/24", "PTTMETRO Botafogo", 0),
+   ("196.223.7.0/24", "MEIX", 0),
+   ("195.189.188.0/25", "UppRIX", 0),
+   ("195.189.189.0/25", "UppRIX", 0),
+   ("195.189.188.128/25", "UppRIX", 0),
+   ("195.60.93.0/26", "Crimea-IX", 0),
+   ("218.100.59.0/24", "ACTIX", 0),
+   ("193.42.155.0/24", "ECIX Hamburg", 0),
+   ("194.107.117.0/24", "Od-IX", 0),
+   ("202.158.0.0/17", "CBN Exchange Point", 0),
+   ("82.148.16.0/24", "NET-IX", 0),
+   ("193.156.120.0/24", "NIX2", 0),
+   ("194.30.187.0/24", "Sitelix", 0),
+   ("217.156.113.0/24", "RoNIX", 0),
+   ("193.192.15.64/26", "CIX", 0),
+   ("212.5.48.0./22", "SofiaConn", 0),
+   ("200.219.144.0/24", "PTTMETRO Londrina", 0),
+   ("2001:7f8:4d::/48", "ExWest", 0),
+   ("193.2.141.0/24", "SIX SI", 0),
+   ("89.40.130.0/24", "TomIX", 0),
+   ("114.141.48.0/21", "CyberPlus", 0),
+   ("195.140.192.0/24", "TREX", 0),
+   ("91.213.73.0/24", "CNIX", 0),
+   ("193.169.198.0/23", "BIX.BG", 0),
+   ("195.2.230.0/23", "KAZ-IX", 0),
+   ("91.213.236.0/24", "TOUIX", 0),
+   ("206.51.41.0/24", "CoreSite - Any2 Silicon Valley", 0),
+   ("83.217.20.0/26", "ULN-IX", 0),
+   ("93.156.93.0/24", "TRDIX", 0),
+   ("198.32.214.0/24", "CINX", 0),
+   ("189.76.208.0/20", "WKVE", 0),
+   ("83.212.8.0/23", "GR-IX", 0),
+   ("194.85.107.0/24", "EKT-IX", 0),
+   ("192.77.55.0/24", "QIX", 0),
+   ("78.111.112.0/20", "GRAPESC", 0),
+   ("93.91.144.0/20", "GRAPESC", 0),
+   ("109.72.0.0/20", "GRAPESC", 0),
+   ("188.227.0.0/22", "dataix", 0),
+   ("196.223.5.0/25", "TIX - Tanzania", 0),
+   ("209.33.201.176/28", "SUPRnet", 0),
+   ("195.246.227.0/24", "SMILE-LV", 0),
+   ("200.0.20.0/23", "CAR-IX", 0),
+   ("193.136.251.96/27", "GigaPix OPorto", 0),
+   ("218.100.27.0/24 ", "OpenIXP / NiCE", 0),
+   ("218.100.36.0/24", "OpenIXP / NiCE", 0),
+   ("193.37.144.0/24", "AAIX", 0),
+   ("193.232.136.0/24", "VLV-IX", 0),
+   ("193.232.135.0/24", "SMR-IX", 0),
+   ("193.232.140.0/24", "RND-IX", 0),
+   ("193.57.253.128/27", "REUNIX", 0),
+   ("62.63.140.0/22", "LIX-LV", 0),
+   ("194.88.240.0/25", "INEX LAN2", 0),
+   ("193.17.78.0/24", "MD-IX", 0),
+   ("192.114.62.0/23", "IIX_", 0),
+   ("204.228.158.0/27", "UTOPIA", 0),
+   ("194.190.119.0/24", "KZN-IX", 0),
+   ("193.219.13.64/26", "LIPTAM", 0),
+   ("216.72.175.0/24", "NAP Chile", 0),
+   ("91.216.67.0/24", "FR-IX", 0),
+   ("202.85.224.0/20", "Powernetix", 0),
+   ("196.223.1.0/24", "Angola-IXP / ANG-IXP", 0),
+   ("194.153.153.0/24", "UIXP", 0),
+   ("193.105.163.0/24", "SOX d.o.o. Serbia", 0),
+   ("198.32.136.0/24", "NASA-AIX", 0),
+   ("198.32.153.0/24", "NASA-AIX", 0),
+   ("198.9.201.0/24", "NASA-AIX", 0),
+   ("198.9.202.0/24", "NASA-AIX", 0),
+   ("218.100.70.0/24", "SGIX", 0),
+   ("193.105.214.0/24", "GraX", 0),
+   ("218.100.41.0/24", "BIXc", 0),
+   ("91.198.176.0/24", "Fixo", 0),
+   ("194.117.52.128/25", "COPHIX", 0),
+   ("119.110.116.0/23", "MCIX - Matrix Networks", 0),
+   ("91.212.9.0/24", "KIX", 0),
+   ("91.192.104.0/23", "Lviv-IX", 0),
+   ("206.223.120.0/24", "AZIX", 0),
+   ("195.60.89.0/25", "CBIX", 0),
+   ("212.91.0.0/22", "Thinx", 0),
+   ("195.149.232.0/21", "TP-IX", 0),
+   ("196.216.148.0/24", "IXPN Lagos", 0),
+   ("195.191.170.0/23", "EPIX", 0),
+   ("195.149.232.0/23", "TPIX", 0),
+   ("188.116.45.0/24", "GIX Gdansk", 0),
+   ("193.28.6.0/24", "PIRIX", 0),
+   ("218.100.78.0/24", "VIC-IX", 0),
+   ("206.197.131.0/24", "COIX", 0),
+   ("196.223.24.0/24", "LIXP", 0),
+   ("192.168.10.0/24", "MOZIX", 0),
+   ("217.117.187.0/24", "KRS-IX", 0),
+   ("80.81.201.0/24", "DE-CIX Duesseldorf", 0),
+   ("193.105.116.0/24", "Content-IX", 0),
+   ("213.184.52.0/24", "RTIX", 0),
+   ("81.16.231.0/25", "Litix", 0),
+   ("91.232.229.0/24", "Rheintal IX", 0),
+   ("200.219.144/22", "PTTMETRO Salvador", 0),
+   ("192.108.145.0/24", "SIX.SK Kosice", 0),
+   ("206.123.7.0/24", "JXIX", 0),
+   ("206.108.236.0/24", "Boston Internet Exchange", 0),
+   ("218.100.21.0/24", "PNIX", 0),
 ]
 
 ixps6 = [
-    "2001:7f8::/29",            # generic IXP
-    "2001:470:1f07:cff::/64",   # pix.net.pl
+    ("2001:0458:0026:2::/64", "BigApe", 0),
+    ("2001:0504:0013::/48", "CoreSite - Any2 Los Angeles", 0),
+    ("2001:07F8:0002::/48", "UK6X", 0),
+    ("2001:12f8:0:16::/64", "PTTMETRO Americana", 0),
+    ("2001:13c7:6002::/48", "OCIX", 0),
+    ("2001:19e0:ffff::/64", "MKE-IX", 0),
+    ("2001:43f8:01f0:0::/64", "JINX", 0),
+    ("2001:43f8:01f0:1::/64", "JINX", 0),
+    ("2001:43f8:01f1:0::/64", "CINX", 0),
+    ("2001:43f8:01f1:1::/64", "CINX", 0),
+    ("2001:43f8::/64", "TIX - Tanzania", 0),
+    ("2001:470:1f07:cff::/64", "PIX", 0),  # 
+    ("2001:478:124::/48", "NOTA", 0),
+    ("2001:478:132::/64", "Telx Atlanta", 0),
+    ("2001:478:186::/64", "Telx Phoenix", 0),
+    ("2001:478:195::/64", "NWAX", 0),
+    ("2001:478:6663:100::/64", "NASA-AIX", 0),
+    ("2001:478:6663:200::/64", "NASA-AIX", 0),
+    ("2001:504:0:1::/64", "Equinix San Jose", 0),
+    ("2001:504:0:2::/64", "Equinix Ashburn", 0),
+    ("2001:504:0:3::/64", "Equinix Los Angeles", 0),
+    ("2001:504:0:4::/64", "Equinix Chicago", 0),
+    ("2001:504:0:5::/64", "Equinix Dallas", 0),
+    ("2001:504:10::/64", "Equinix Atlanta", 0),
+    ("2001:504:12::/64", "Equinix Seattle", 0),
+    ("2001:504:13:1:0:0:0:0/64", "CoreSite - Any2 DC", 0),
+    ("2001:504:13:3:0:0:0:0/64", "CoreSite - Any2 Silicon Valley", 0),
+    ("2001:504:13:4:0:0:0:0/64", "CoreSite - Any2 Chicago", 0),
+    ("2001:504:13:5:0:0:0:0/64", "CoreSite - Any2 Miami", 0),
+    ("2001:504:13:6:0:0:0:0/64", "CoreSite - Any2 New York", 0),
+    ("2001:504:13:7:0:0:0:0/64", "CoreSite - Any2 Boston", 0),
+    ("2001:504:16::/64", "SIX", 0),
+    ("2001:504:17:114::/64", "Telx Dallas", 0),
+    ("2001:504:17:115::/64", "Telx New York", 0),
+    ("2001:504:18::/48", "AZIX", 0),
+    ("2001:504:19::/64", "PIX Vancouver", 0),
+    ("2001:504:1B:1::/64", "KCIX Kansas City", 0),
+    ("2001:504:1a:0:0:34::/111", "TorIX", 0),
+    ("2001:504:20:81::/64", "BNIIX", 0),
+    ("2001:504:21::/64", "GTIIX", 0),
+    ("2001:504:D:80::/64", "Equinix Toronto", 0),
+    ("2001:504:d::/64", "Equinix Palo Alto", 0),
+    ("2001:504:e::/64", "Equinix Vienna, VA", 0),
+    ("2001:504:f::/64", "Equinix New York", 0),
+    ("2001:648:2100::/48", "GR-IX", 0),
+    ("2001:7F8:13::/64", "NL-IX", 34307),
+    ("2001:7F8:1F::/48", "DIX", 0),
+    ("2001:7F8:20:301::/64", "EKT-IX", 0),
+    ("2001:7F8:20:501::/64", "RND-IX", 0),
+    ("2001:7F8:20:601::/64", "SMR-IX", 0),
+    ("2001:7F8:2D::/48", "PARIX", 0),
+    ("2001:7F8:30::/64", "VIX", 0),
+    ("2001:7F8:46::/64", "SIX SI", 0),
+    ("2001:7F8:F:1::/64", "ESPANIX", 0),
+    ("2001:7FA:0:1::/64", "HKIX", 0),
+    ("2001:7f8:14::/64", "NIX CZ", 0),
+    ("2001:7f8:17::/48", "LONAP", 0),
+    ("2001:7f8:18:12::/64", "INEX LAN2", 0),
+    ("2001:7f8:18::/48", "INEX LAN1", 0),
+    ("2001:7f8:19::/48", "B-CIX", 0),
+    ("2001:7f8:1::/64", "AMS-IX", 0),
+    ("2001:7f8:20:101::/64", "MSK-IX", 0),
+    ("2001:7f8:20:102::/64", "MSK-IX", 0),
+    ("2001:7f8:20:401::/64", "NSK-IX", 0),
+    ("2001:7f8:20:801::/64", "KZN-IX", 0),
+    ("2001:7f8:21:10::/64", "NULL", 0),
+    ("2001:7f8:21:10::/64", "SOL-IX / SOLIX", 0),
+    ("2001:7f8:21:11::/64", "NULL", 0),
+    ("2001:7f8:21:11::/64", "SOL-IX / SOLIX", 0),
+    ("2001:7f8:21:12:/64", "NULL", 0),
+    ("2001:7f8:21:12::/64", "SOL-IX / SOLIX", 0),
+    ("2001:7f8:21:9::/64", "NULL", 0),
+    ("2001:7f8:21:9::/64", "SOL-IX / SOLIX", 0),
+    ("2001:7f8:23:ffff::/64", "TOP-IX", 0),
+    ("2001:7f8:24::/48", "SwissIX", 0),
+    ("2001:7f8:25:1::/64", "FNIX6", 0),
+    ("2001:7f8:28::/48", "CIX", 0),
+    ("2001:7f8:2c:1000/64", "INXS", 0),
+    ("2001:7f8:33::/48", "KleyReX", 0),
+    ("2001:7f8:3d::/64", "WORK-IX", 0),
+    ("2001:7f8:3e::/48", "STHIX", 0),
+    ("2001:7f8:41::/48", "Fixo", 0),
+    ("2001:7f8:42::/48", "PLIX", 0),
+    ("2001:7f8:44::/64", "ALP-IX", 0),
+    ("2001:7f8:4:0::/64", "LINX Juniper LAN", 0),
+    ("2001:7f8:4:1::/64", "LINX Extreme LAN", 0),
+    ("2001:7f8:4a::/48", "AAIX", 0),
+    ("2001:7f8:4e:2::/64", "SFINX", 0),
+    ("2001:7f8:53::/48", "MalmIX Malmo / IXOR", 0),
+    ("2001:7f8:54::/64", "France-IX", 0),
+    ("2001:7f8:5c::/64", "COPHIX", 0),
+    ("2001:7f8:5e::/64", "CBIX", 0),
+    ("2001:7f8:60::/48", "Thinx", 0),
+    ("2001:7f8:62::/64", "DE-CIX D?sseldorf", 0),
+    ("2001:7f8:66::/64", "Rheintal IX", 0),
+    ("2001:7f8:7::/112", "FICIX", 0),
+    ("2001:7f8:8:10::/64", "ECIX Hamburg", 0),
+    ("2001:7f8:8:5::/64", "ECIX Berlin", 0),
+    ("2001:7f8:8::/64", "ECIX Duesseldorf", 0),
+    ("2001:7f8:9::/48", "Edge-IX", 0),
+    ("2001:7f8::/64", "DE-CIX", 0),
+    ("2001:7f8:b::/64", "MIX-IT", 0),
+    ("2001:7f8:d:fb::/64", "NetNod Stockholm", 0),
+    ("2001:7f8:d:fc::/64", "NetNod Stockholm", 0),
+    ("2001:7f8:d:fe::/64", "NetNod Stockholm", 0),
+    ("2001:7f8:d:ff::/64", "NetNod Stockholm", 0),
+    ("2001:7f8:f::/48", "ESPANIX", 0),
+    ("2001:7fa:11:1::/64", "VIC-IX", 0),
+    ("2001:7fa:3:ca07::/64", "WIX-NZ", 0),
+    ("2001:7fa:4:c0cb::/64", "APE", 0),
+    ("2001:7fa:f::/48", "OpenIXP / NiCE", 0),
+    ("2001:860:0:6::/64", "PaNAP", 0),
+    ("2001:DE8:4::/64", "Equinix Singapore", 0),
+    ("2001:DE8:5::/64", "Equinix Tokyo", 0),
+    ("2001:DE8:6::/64", "Equinix Sydney", 0),
+    ("2001:DE8:7::/64", "Equinix Hong Kong", 0),
+    ("2001:de8:10::/112", "MyIX", 0),
+    ("2001:de8:12::/56", "SGIX", 0),
+    ("2001:de8:8::/64", "JPIX", 0),
+    ("2001:de8:d::/64", "SOX", 0),
+    ("206.51.44.0/24", "CoreSite - Any2 Miami", 0),
+    ("2404:c000:4004::/64", "MCIX - Matrix Networks", 0),
+    ("2604:2c00:ffff:fff0::/64", "SUPRnet", 0),
+    ("2607:f388:0:2200::/64", "MadIX", 0),
+    ("2607:fe10:ffff::/64", "MICE", 0),
+    ("2001:7f8::/29", "", 0),           # generic IXP
 ]
 
 
@@ -436,153 +573,209 @@ def traceroutes(hosts, destination, user, proto, udp, timeout):
     return result
 
 
-def resolve(traceroutes, resolve):
-    """Lookup ASNs and FQDNs.
+def analyse(traceroutes, resolve):
+    """Analyse results, build a map with data for each IP found
     """
 
-    aslist = {}
-    fqdnlist = {} 
-    lookup_ok = 0
-    lookup_fail = 0
-
+    lst = {}
+    iplist = {}
+    
+    # generate a list of unique IPs
     for host in traceroutes.keys():
+        hops = [h.split()[1] for h in traceroutes[host]]
+        i = 0
+        for ip in hops:
+            iplist[ip] = {}
+            if ip != "???":
+                lst[ip] = ip
+                if (i == 0) or (i == len(hops)-1):
+                    iplist[ip]["resolve"] = True
+            i += 1
 
-        ips = [x.split(" ")[1] for x in traceroutes[host]]
-        for ip in ips:
-                if (ip != '???' and aslist.get(ip, 'unknown') == 'unknown'):
-                    try:
-                        r = reversename.from_address(ip)
-                        qstr = "%s.origin%s.asn.cymru.com" % (
-                            ".".join(r.to_text().split('.')[:-3]),
-                            "6" if ":" in ip else "",
-                        )
-                        qres = query(qstr, "TXT")
-                        asn = qres[0].strings[0].split(' ')[0]
-                        aslist[ip] = asn
-                        lookup_ok += 1
-                    except:
-                        aslist[ip] = 'unknown'
-                        lookup_fail += 1
+    iplist["???"] = {"fqdn" : "unknown", 
+                     "asn" : "unknown", 
+                     "country" : "unknown", 
+                     "desc" : "unknown",  
+                     "ix" : False,
+                    }
 
-        if resolve or len(ips) == 0:
-            lookups = ips
-        else:
-            lookups = [ips[0], ips[-1]]
-            
-        for ip in lookups:
-           if (ip != '???' and fqdnlist.get(ip, 'unknown') == 'unknown'):
-               try:
-                   qres = query(reversename.from_address(ip).to_text(), 'PTR')
-                   fqdn = qres[0].to_text()
-                   fqdnlist[ip] = fqdn
-                   lookup_ok += 1
-               except:
-                   fqdnlist[ip] = 'unknown'
-                   lookup_fail += 1 
+    # bulk whois query at Cymru for lookups
+    lookups = []
+    try:
+        result = ""
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect(("whois.cymru.com", 43))
+        s.sendall("begin\ncountrycode\nnoheader\nasname\n%s\nend\n" % "\n".join(lst.keys()))
+        s.shutdown(socket.SHUT_WR)
+        while 1:
+            data = s.recv(1024)
+            if not data:
+                break
+            result += data
+        s.close()
+        lookups = result.strip().split("\n")[1:]
+    except:
+        print "Failed to lookup ASNs at cymru.com."
+        return iplist
+    for line in lookups:
+        (asn, ip, country, desc) = [item.strip() for item in line.split("|")]
+        iplist[ip]["fqdn"] =  ""
+        iplist[ip]["asn"] =  "unknown" if asn == "NA" else asn
+        iplist[ip]["country"] =  country
+        iplist[ip]["desc"] =  "unknown" if desc == "NA" else desc
+        iplist[ip]["ix"] =  False
 
-    debug("%d successful IP lookups, %d failed." % (lookup_ok, lookup_fail))
-    asnames = {}
-    # make list of asnames
-    for a in aslist.values():
-        try:
-            if not a in asnames.keys():
-                qres = query("as%s.asn.cymru.com" % a, "TXT")
-                asnames[a] = qres[0].strings[0].split('|')[4].strip().split(' ')[0]
-        except:
-            pass
+    # DNS lookups of fqdns
+    debug("Looking up DNS entries.")
+    l_ok, l_fail = 0, 0
+    for ip in iplist.keys():
+            try:
+                qres = query(reversename.from_address(ip).to_text(), 'PTR')
+                fqdn = qres[0].to_text()
+                iplist[ip]["fqdn"] = fqdn
+                l_ok += 1
+            except:
+                iplist[ip]["fqdn"] = 'unknown'
+                l_fail += 1
+    debug("DNS lookups: %d ok, %d failed" % (l_ok, l_fail))
+    
+    debug("Checking IXP lists.")
+    # check for each IP if it's an IXP address
+    for ip in iplist.keys():
+        (ixlist, fun_addr, fun_net) = (ixps6, IPv6Address, IPv6Network) if ":" in ip else (ixps4, IPv4Address, IPv4Network)
+        for (ix, desc, asn) in ixlist:
+            try:
+                if fun_addr(ip) in fun_net(ix):
+                    iplist[ip]["ix"] = True
+                    if desc:
+                        iplist[ip]["desc"] = desc
+                        # override cymru data if set in array
+                        if asn > 0:
+                            iplist[ip]["asn"] = "%d" % asn
+            except AddressValueError:
+                pass
 
-    return (aslist, asnames, fqdnlist)
+    return iplist
 
 
-def graph(traces, destination, aslist, asnames, fqdnlist, resolve, asn, no_ixp):
+def graph(traces, tracedata, destination, resolve, asn, no_ixp, 
+          show_country, remove_broken, highlight_ixp):
     """Generate the entire graph.
     """
 
-    result = "digraph G {"
+    result  = """
+digraph G { 
+    fontsize=7 
+    fontcolor="#777777" 
+    labeljust=r 
+    label="ring-trace v%s - https://ring.nlnog.net"
+""" % VERSION
     count = 0
+    # using dicts to make nodes and edges unique
+    nodes = {}
+    edges = {}
     for host in traces.keys():
         ips = [x.split(" ")[1] for x in traces[host]]
 
-        # remove IXP addresses if wanted
-        if no_ixp:
-            for ip in ips:
-                if ":" in ip and ip != "???":
-                    for ix in ixps6:
-                        try:
-                            if IPv6Address(ip) in IPv6Network(ix):
-                                while ip in ips:
-                                    debug("Removing %s from trace since it is an IXP address." % ip)
-                                    ips.remove(ip)
-                        except AddressValueError:
-                            pass
-                elif ip != "???":
-                    for ix in ixps4:
-                        try:
-                            if IPv4Address(ip) in IPv4Network(ix):
-                                while ip in ips:
-                                    debug("Removing %s from trace since it is an IXP address." % ip)
-                                    ips.remove(ip)
-                        except AddressValueError:
-                            pass
-        
-        nodes = ""
-        edges = ""
-
         if asn:
             # asns instead of ips
-            a = [aslist.get(ip, 'unknown') for ip in ips]
-            # remove unkown entries
-            while 'unknown' in a:
-                a.remove('unknown')
+            a = [(tracedata[ip]["asn"],tracedata[ip]["ix"],tracedata[ip]["desc"], "") for ip in ips if not (tracedata[ip]["ix"] and no_ixp)]
+
+            if remove_broken:
+                # remove unkown entries
+                for i in ["unknown", "???", "NA"]:
+                    while i in [x[0] for x in a]:
+                        for x in a:
+                            if x[0] == i:
+                                a.remove(x)
+
             # make a list of the asns, showing each asn only once
             asns = [key for key,i in itertools.groupby(a)]
 
             for index in range(0, len(asns)):
-                nodes = "%s node%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%sAS %s\\n(%s)\" %s]" % (
-                    nodes,
-                    asns[index],
+                fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(asns)-1 else "#ddffdd" if (asns[index][1] and highlight_ixp) else "#ffffff"
+                if asns[index][1]:
+                    label = "%s%s" % (
+                        "%s\\n" % host if index == 0 else "",
+                        asns[index][2].split(" ")[0],
+                    )
+                else:
+                    label = "%s%s\\nAS%s" % (
+                        "%s\\n" % host if index == 0 else "",
+                        asns[index][2].split(" ")[0], 
+                        asns[index][0]
+                    )
+                nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\"]" % (
+                    asns[index][0], count if index == 0 else 0,
                     colors[count % len(colors)] if (index ==0) else "black",
-                    "%s\\n" % host if index == 0 else "",
-                    asns[index],
-                    asnames.get(asns[index], 'unknown'),
-                    "style=filled fillcolor=\"#eeeeee\" " if index ==len(asns)-1 else "",
-                )
+                    label, fc,
+                )] = 1
 
                 if index < len(asns)-1:
-                    edges = "%s node%s -> node%s [color=\"%s\"] " % (
-                        edges, 
-                        asns[index],
-                        asns[index + 1],
+                    edges["    node%s_%d -> node%s_0 [color=\"%s\"]\n" % (
+                        asns[index][0], count if index == 0  else 0,
+                        asns[index + 1][0], 
                         colors[count % len(colors)]
-                    )
+                    )] = 1
         else:
+            if remove_broken:
+                # remove unkown entries
+                for i in ["unknown", "???", "NA"]:
+                    while i in ips:
+                        ips.remove(i)
+
+            # remove IXP hops if wanted
+            if no_ixp:
+                for ip in ips:
+                    if tracedata[ip]["ix"]:
+                        ips.remove(ip)
+
             for index in range(0, len(ips)):
-                nodes = "%s node%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s%s\\n(AS %s)\"]" % (
-                    nodes,
-                    ips[index].replace(':','_').replace('?', 'X').replace('.', '_'),
-                    colors[count % len(colors)] if (index ==0) else "black",
+                fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(ips)-1 else "#ddffdd" if (tracedata[ips[index]]["ix"] and highlight_ixp) else "#ffffff"
+                label = "%s%s\\nAS%s - %s" % (
                     ips[index],
-                    "\\n%s" % fqdnlist.get(ips[index], "unknown") if (index == 0 or resolve) else "",
-                    aslist.get(ips[index], 'unknown'),
+                    "\\n%s" % tracedata[ips[index]]['fqdn'] if (index == 0 or resolve) else "",
+                    tracedata[ips[index]]['asn'], tracedata[ips[index]]['desc'].split(' ')[0],
                 )
+                if show_country:
+                    label = "%s (%s)" % (label, tracedata[ips[index]]['country'])
+                nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
+                    ips[index].replace(':','_').replace('?', 'X').replace('.', '_'), 
+                    count if index == 0 else 0,
+                    colors[count % len(colors)] if (index ==0) else "black",
+                    label,
+                    fc,
+                )] = 1
 
                 if index < len(ips)-1:
-                    edges = "%s node%s -> node%s [color=\"%s\"] " % (
-                        edges, 
-                        ips[index].replace(':','_').replace('?','X').replace('.','_'),
-                        ips[index + 1].replace(':','_').replace('?','X').replace('.','_'),
+                    edges["    node%s_%d -> node%s_0 [color=\"%s\"] \n" % (
+                        ips[index].replace(':','_').replace('?','X').replace('.','_'), 
+                        count if index == 0 else 0,
+                        ips[index + 1].replace(':','_').replace('?','X').replace('.','_'), 
                         colors[count % len(colors)]
-                    )
-        result = "%s %s %s " % (result, nodes, edges)
+                    )] = 1
+
         count += 1
-    result = "%s }" % result
+    result = "%s\n%s\n%s" % (result, "\n".join(nodes.keys()), "\n".join(edges.keys()))
+    result = "%s}" % result
 
     return result
 
 
-def make_image(dot, outfile, outtype, pastebin, dest, traces):
+def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
     """Make the actual image by running 'dot' on the generated graphviz code
     """
+
+    if outtype == "dot":
+        try:
+            fh = open(outfile, 'w')
+            fh.write(dot + "\n")
+            fh.close()
+        except:
+            print "Failed to save the image to %s" % outfile
+            sys.exit(1)
+        return
+
     fh, fname = tempfile.mkstemp(prefix='trace_')
     try:
         f = os.fdopen(fh, 'w')
@@ -595,10 +788,10 @@ def make_image(dot, outfile, outtype, pastebin, dest, traces):
     if pastebin:
         outtype = "png"
     try:
-        f = os.popen("/usr/bin/dot -T%s -o%s %s" % (outtype, outfile, fname))
+        f = os.popen("/usr/bin/%s -T%s -o%s %s" % (layout, outtype, outfile, fname))
         f.close()
     except:
-        print "failed to exec 'dot': /usr/bin/dot -T%s -o%s %s" % (outtype, outfile, fname)
+        print "failed to exec '%s': /usr/bin/%s -T%s -o%s %s" % (layout, layout, outtype, outfile, fname)
         sys.exit(1)
 
     if not os.path.exists(outfile):
@@ -620,9 +813,13 @@ def make_image(dot, outfile, outtype, pastebin, dest, traces):
             ]
         postdata = urllib.urlencode(postarray)
         try:
-            req = urllib2.Request(url="https://ring.nlnog.net/paste/", data=postdata)   
+            req = urllib2.Request(url=PASTEBIN, data=postdata)   
             result = urllib2.urlopen(req)
-            print "\nImage uploaded to %s" % result.url
+            if result.url == PASTEBIN:
+                print "\nFailed to upload the image to the pastebin."
+                sys.exit(1)
+            else:
+                print "\nImage uploaded to %s" % result.url
         except:
             print "failed to upload the image to the pastebin."
             sys.exit(1)
@@ -654,41 +851,47 @@ def read_config():
     config = {
         "groupbyasn":   False,          # flag: -a, --asn
         "pastebin":     False,          # flag: -b, --pastebin
+        "removebroken": False,          # flag: -B, --remove-broken-hops
+        "showcountry":  False,          # flag: -c, --show-country
         "excludehosts": [],             # flag: -e, --exclude
         "includehosts": [],             # flag: -i, --include
+        "layout":       "dot",          # flag: -l, --layout
         "usenodes":     -1,             # flag: -n, --random
         "filename":     None,           # flag: -o, --outfile
         "topnodes":     0,              # flag: -p, --hops
         "resolve":      False,          # flag: -r, --resolve
-        "report":       False,          # flag: -R, --report
         "filetype":     "jpg",          # flag: -t, --type
         "sshtimeout":   10,             # flag: -T, --timeout
         "user":         None,           # flag: -u, --user
         "udp":          False,          # flag: -U, --udp
         "verbose":      0,              # flag: -v / -vv, --verbose, --extra-verbose
         'excludeixp':   False,          # flag: -x, --exclude-ixp
+        "highlightixp": False,          # flag: -X, --highlight-ixp-hops
         "ipv4":         False,          # flag: -4, --ipv4
         "ipv6":         False,          # flag: -6, --ipv6
     }
 
     conftypes = {
-        "groupbyasn" : "bool",    
-        "pastebin" : "bool",      
-        "includehosts" : "list",
-        "excludehosts": "list",   
-        "usenodes" : "int",       
-        "filename" : "str",
-        "topnodes" : "int",       
-        "resolve" : "bool",       
-        "report" : "bool",
-        "filetype" : "enum:gif,jpg,pdf,png,ps,svg",
-        "sshtimeout" : "int",     
-        "user" : "str",           
-        "udp" : "bool",
-        "verbose" : "int",        
-        "excludeixp" : "bool",    
-        "ipv4" : "bool",
-        "ipv6" : "bool" 
+        "groupbyasn":       "bool",    
+        "pastebin":         "bool",      
+        "includehosts":     "list",
+        "excludehosts":     "list",   
+        "showcountry":      "bool",
+        "removebroken":     "bool",
+        "highlightixp":     "bool",
+        "layout":           "enum:dot,neato,fdp,sfdp,twopi,circo",
+        "usenodes":         "int",       
+        "filename":         "str",
+        "topnodes":         "int",       
+        "resolve":          "bool",       
+        "filetype":         "enum:dot,gif,jpg,pdf,png,ps,svg",
+        "sshtimeout":       "int",     
+        "user":             "str",           
+        "udp":              "bool",
+        "verbose":          "int",        
+        "excludeixp":       "bool",    
+        "ipv4":             "bool",
+        "ipv6":             "bool" 
     }
 
     try:
@@ -726,12 +929,6 @@ def read_config():
     return config
 
 
-def show_report(traces, destination):
-    """print a report of the results.
-    """
-
-    print len(traces)
-
 if __name__ == "__main__":
     start = time.time()
     
@@ -749,7 +946,6 @@ if __name__ == "__main__":
     debug("%d hosts available" % len(hosts))
 
     conf = read_config()
-    debug("base config: \n%s" % "\n".join(["  - %s: %s" % (x, conf[x]) for x in conf.keys()]))
 
     parser = argparse.ArgumentParser(
         description="Perform a series of mtr's using the nlnog ring and visualise the results.\n\nAvailable hosts (%d): %s" % (
@@ -759,25 +955,177 @@ if __name__ == "__main__":
         epilog="Visit http://ring.nlnog.net for more information.", 
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", help="destination of the traces")
-    parser.add_argument("-a", "--asn", action="store_const", dest="asn", help="group by ASN", default=conf['groupbyasn'], const=True)
-    parser.add_argument("-b", "--pastebin", action="store_const", dest="pastebin", help="send output to a pastebin", default=conf['pastebin'], const=True)
-    parser.add_argument("-e", "--exclude", action="append", dest="exclude", help="exclude this host", default=conf['excludehosts'], metavar="HOST")
-    parser.add_argument("-i", "--include", action="append", dest="include", help="include this host", default=conf['includehosts'], metavar="HOST")
-    parser.add_argument('-n', '--random', action='store', dest='random', default=conf['usenodes'], type=int,  help='pick a given number of hosts at random')
-    parser.add_argument("-o", "--output", action="store", dest="outfile", help="output filename (trace-DESTINATION.type by default)", default=conf['filename'])
-    parser.add_argument("-p", "--hops", action="store", dest="hops", metavar="N", type=int, help="pick top N and bottom N hosts based on hopcount", default=conf['topnodes'])
-    parser.add_argument('-r', '--resolve', action='store_const', dest='resolve', default=False, const=conf["resolve"],  help='try to resolve all addresses (WARNING: can take long!)')
-    parser.add_argument('-R', '--report', action='store_const', dest='report', default=False, const=conf["report"],  help='show a report of the results')
-    parser.add_argument('-t', '--type', action='store', dest='outtype', choices=('gif', 'pdf', 'png', 'jpg', 'ps', 'svg'), default=conf['filetype'], help='output filetype (jpg by default)')
-    parser.add_argument("-T", "--timeout", action='store', dest='timeout', default=int(conf['sshtimeout']), type=int, help="SSH connection timeout in seconds (10 by default)")
-    parser.add_argument("-u", "--user", action="store", dest="user", help="username for SSH logins", default=conf['user'])
-    parser.add_argument("-U", "--udp", action="store_const", dest="udp", help="use UDP instead of ICMP ECHO", const=True, default=conf['udp'])
-    parser.add_argument("-v", "--verbose", action="store_const", dest="debug", help="verbose mode", const=1, default=int(conf['verbose']))
-    parser.add_argument("-vv", "--extra-verbose", action="store_const", dest="debug2", help="extra verbose mode (SSH debugging)", const=2, default=int(conf['verbose']))
-    parser.add_argument("-x", "--exclude-ixp", action="store_const", dest="no_ixp", help="remove IXP hops from traces", const=True, default=conf['excludeixp'])
+    asarg = parser.add_mutually_exclusive_group()
+    asarg.add_argument(
+        "-a", "--asn", 
+        action="store_const", 
+        dest="asn", 
+        help="group by ASN instead of IP", 
+        default=conf['groupbyasn'], 
+        const=True
+    )
+    asarg.add_argument(
+        "-c", "--show-country", 
+        action="store_const", 
+        dest="show_country", 
+        help="show country codes for IP addresses",
+        default=conf['showcountry'], 
+        const=True
+    )
+    parser.add_argument(
+        "-b", "--pastebin", 
+        action="store_const", 
+        dest="pastebin", 
+        help="send output to a pastebin instead of saving it to file", 
+        default=conf['pastebin'], 
+        const=True
+    )
+    parser.add_argument(
+        "-B", "--remove-broken-hops", 
+        action="store_const", 
+        dest="remove_broken", 
+        help="remove broken hops from output image", 
+        default=conf['removebroken'], 
+        const=True
+    )
+    parser.add_argument(
+        "-e", "--exclude", 
+        action="append", 
+        dest="exclude", 
+        help="exclude a specific host", 
+        default=conf['excludehosts'], 
+        metavar="HOST"
+    )
+    parser.add_argument(
+        "-i", "--include", 
+        action="append", 
+        dest="include", 
+        help="include this host", 
+        default=conf['includehosts'], 
+        metavar="HOST"
+    )
+    parser.add_argument(
+        "-l", "--layout", 
+        action="store", 
+        dest="layout", 
+        choices=("dot", "neato", "fdp", "sfdp", "twopi", "circo"),
+        help="layout style (dot by default)",
+        default=conf["layout"]
+    )
+    parser.add_argument(
+        "-n", "--random", 
+        action="store", 
+        dest="random", 
+        help="pick a given number of hosts at random",
+        default=conf["usenodes"], 
+        type=int
+    )
+    parser.add_argument(
+        "-o", "--output", 
+        action="store", 
+        dest="outfile", 
+        help="output filename (trace-DESTINATION.type by default)", 
+        default=conf["filename"]
+    )
+    parser.add_argument(
+        "-p", "--hops", 
+        action="store", 
+        dest="hops", 
+        metavar="N", 
+        help="pick top N and bottom N hosts based on hopcount", 
+        default=conf["topnodes"],
+        type=int
+    )
+    parser.add_argument(
+        "-r", "--resolve", 
+        action="store_const", 
+        dest="resolve", 
+        help="try to resolve all addresses (WARNING: can take long!)",
+        const=True,
+        default=conf["resolve"],  
+    )
+    parser.add_argument(
+        "-t", "--type", 
+        action="store", 
+        dest="outtype", 
+        choices=("dot", "gif", "pdf", "png", "jpg", "ps", "svg"), 
+        help="output filetype (jpg by default)",
+        default=conf["filetype"]
+    )
+    parser.add_argument(
+        "-T", "--timeout", 
+        action="store", 
+        dest="timeout", 
+        type=int, 
+        help="SSH connection timeout in seconds (10 by default)",
+        default=int(conf["sshtimeout"])
+    )
+    parser.add_argument(
+        "-u", "--user", 
+        action="store", 
+        dest="user", 
+        help="username for SSH logins", 
+        default=conf["user"]
+    )
+    parser.add_argument(
+        "-U", "--udp", 
+        action="store_const", 
+        dest="udp", 
+        help="use UDP instead of ICMP ECHO", 
+        const=True, 
+        default=conf["udp"]
+    )
+    parser.add_argument(
+        "-v", "--verbose", 
+        action="store_const", 
+        dest="debug", 
+        help="verbose mode", 
+        const=1, 
+        default=int(conf["verbose"])
+    )
+    parser.add_argument(
+        "-vv", "--extra-verbose", 
+        action="store_const", 
+        dest="debug2", 
+        help="extra verbose mode (SSH debugging)", 
+        const=2, 
+        default=int(conf["verbose"])
+    )
+    ixarg = parser.add_mutually_exclusive_group()
+    ixarg.add_argument(
+        "-x", "--exclude-ixp", 
+        action="store_const", 
+        dest="no_ixp", 
+        help="remove IXP hops from traces", 
+        const=True, 
+        default=conf["excludeixp"]
+    )
+    ixarg.add_argument(
+        "-X", "--highlight-ixp-hops", 
+        action="store_const", 
+        dest="highlight_ixp", 
+        help="highlight IXP hops in output", 
+        const=True, 
+        default=conf["highlightixp"]
+    )
     proto = parser.add_mutually_exclusive_group()
-    proto.add_argument("-4", "--ipv4", action="store_const", dest="ipv4", help="enforce IPv4", const=True, default=conf['ipv4'])
-    proto.add_argument("-6", "--ipv6", action="store_const", dest="ipv6", help="enforce IPv6", const=True, default=conf['ipv6'])
+    proto.add_argument(
+        "-4", "--ipv4", 
+        action="store_const", 
+        dest="ipv4", 
+        help="enforce IPv4", 
+        const=True, 
+        default=conf["ipv4"]
+    )
+    proto.add_argument(
+        "-6", "--ipv6", 
+        action="store_const", 
+        dest="ipv6", 
+        help="enforce IPv6", 
+        const=True, 
+        default=conf["ipv6"]
+    )
+
     ns = parser.parse_args()
     proto = ""
     if (ns.ipv4):
@@ -824,6 +1172,9 @@ if __name__ == "__main__":
     debug('performing traces.')
     traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout)
 
+    debug('analysing traces.')
+    tracedata = analyse(traces, ns.resolve and not ns.asn)
+
     if (ns.hops > 0) and (ns.hops * 2 < len(traces)):
         print "Picking top and bottom %d hosts based on hop count." % ns.hops
         # sort based on trace length
@@ -840,26 +1191,19 @@ if __name__ == "__main__":
             newtraces[t[0]] = traces[t[0]]
         traces = newtraces
     
-    debug('generating color table')
+    debug('generating color table.')
     for c in range(0x333333, 0xdddddd, 0xaaaaaa/len(hosts)):
         colors.append("#%x" % c)
 
-    debug('looking up hostnames and ASNs.')
-    if ns.resolve:
-        print "Looking up all IP addresses and ASNs, this may take quite a while."
-    (aslist, asnames, fqdnlist) = resolve(traces, ns.resolve)
-
     debug('generating graphs.')
-    dot = graph(traces, destination, aslist, asnames, fqdnlist, ns.resolve, ns.asn, ns.no_ixp)
+    dot = graph(traces, tracedata, destination, ns.resolve, ns.asn, ns.no_ixp, 
+        ns.show_country, ns.remove_broken, ns.highlight_ixp)
 
     debug('generating output file.')
     outfile = ns.outfile
 
     if not outfile:
         outfile = "trace-%s.%s" % (ns.destination, ns.outtype)
-    make_image(dot, outfile, ns.outtype, ns.pastebin, destination, traces)
-
-    if ns.report:
-        show_report(traces, destination)
+    make_image(dot, ns.layout, outfile, ns.outtype, ns.pastebin, destination, traces)
 
     print "Done in %.1f seconds." % (time.time() - start)
