@@ -18,11 +18,11 @@
 
 # Add a news entry on the website https://ring.nlnog.net/wp-admin/post-new.php
 
-Title: <Company name> joined the RING
+Title: COMPANY_NAME joined the RING
 
-<Company name> - AS <ASN> - joined the RING today. <Company description>
+COMPANY_NAME - AS ASN - joined the RING today. COMPANY_DESCRIPTION
 
-Users can connect to <node name>, which is located in <node location>.
+Users can connect to NODE_NAME, which is located in NODE_LOCATION.
 
 # Send a welcome mail to the participant
 
@@ -31,16 +31,16 @@ To: <Node owner>
 Cc: ring-admins@ring.nlnog.net
 Subject: Welcome to the RING, <company name>
 
-Dear <Company name>,
+Dear COMPANY_NAME 
 
 The machine you provided is part of the ring now! 
 
 The following information is vital: 
 
-    - Your company's username is "<ownername>" 
-    - The user "<ownername>" has sudo rights on <node> (please don't break puppet :-)
+    - Your company's username is "OWNER_NAME"
+    - The user "OWNER_NAME" has sudo rights on NODE_NAME (please don't break puppet :-)
 
-If you want to add additional ssh keys, place them on <node> in /home/<ownername>/sshkeys file and notify one of the ring-admins. One of the ring-admins will then import the sshkeys file into the configuration management system.
+If you want to add additional ssh keys, place them on NODE_NAME in /home/OWNER_NAME/sshkeys file and notify one of the ring-admins. One of the ring-admins will then import the sshkeys file into the configuration management system.
 
 You are welcome to join the ring-users mailinglist, which is used for announcements and discussions among RING users. You can find the list at http://mailman.ring.nlnog.net/cgi-bin/mailman/listinfo/ring-users
 
@@ -64,11 +64,11 @@ Subject: <Company name> joined the RING
 
 Dear All,
 
-<Company name> - AS <ASN> - joined the RING today. <Company description>
+COMPANY_NAME - AS ASN - joined the RING today. COMPANY_DESCRIPTION
 
 Users can connect to <node name>, which is located in <node location>.
 
-Your ssh keys have been distributed to the new ring node, and the ssh host keys of <node> have been added to /etc/ssh/ssh_known_hosts on all ring nodes. 
+Your ssh keys have been distributed to the new ring node, and the ssh host keys of NODE_NAME have been added to /etc/ssh/ssh_known_hosts on all ring nodes. 
 
 Kind regards,
 
