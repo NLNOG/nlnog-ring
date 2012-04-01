@@ -41,20 +41,13 @@ The following information is vital:
     - The user "OWNER_NAME" has sudo rights on NODE_NAME (please don't break puppet :-)
 
 If you want to add additional ssh keys, place them on NODE_NAME in /home/OWNER_NAME/sshkeys file and notify one of the ring-admins. One of the ring-admins will then import the sshkeys file into the configuration management system.
+For further instruction on how to use the ring, see: https://ring.nlnog.net/user-guide/
 
 You are welcome to join the ring-users mailinglist, which is used for announcements and discussions among RING users. You can find the list at http://mailman.ring.nlnog.net/cgi-bin/mailman/listinfo/ring-users
 
 Kind regards,
 
 <You>
-
-ps. An example ~/.ssh/config for on your workstation: 
-
-Host *.ring.nlnog.net
-ForwardAgent yes
-User <ownername>
-IdentityFile /Users/username/.ssh/id_rsa_nlnogring
-IdentitiesOnly yes
 
 # Send mail to the ring-users list
 
