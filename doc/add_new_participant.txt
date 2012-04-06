@@ -49,6 +49,14 @@ Kind regards,
 
 <You>
 
+ps. An example ~/.ssh/config for on your workstation: 
+
+Host *.ring.nlnog.net
+    ForwardAgent yes
+    User OWNER_NAME
+    IdentityFile /Users/username/.ssh/id_rsa_nlnogring
+    IdentitiesOnly yes
+
 # Send mail to the ring-users list
 
 From: <You>
