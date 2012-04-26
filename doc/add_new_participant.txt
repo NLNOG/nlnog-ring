@@ -67,7 +67,7 @@ Dear All,
 
 COMPANY_NAME - AS ASN - joined the RING today. COMPANY_DESCRIPTION
 
-Users can connect to <node name>, which is located in <node location>.
+Users can connect to NODE_NAME, which is located in NODE_LOCATION.
 
 Your ssh keys have been distributed to the new ring node, and the ssh host keys of NODE_NAME have been added to /etc/ssh/ssh_known_hosts on all ring nodes. 
 
