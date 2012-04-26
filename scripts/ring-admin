@@ -126,7 +126,6 @@ class commands(object):
                 args = []
                 if argspec.defaults:
                     defcount = len(argspec.defaults)
-                    print 'defcount %r argsub %r' % (defcount, argspec.args[0:-defcount])
                     for arg in argspec.args[1:-defcount]:
                         args.append('<%s>' % arg)
                     for arg in argspec.args[-defcount:]:
