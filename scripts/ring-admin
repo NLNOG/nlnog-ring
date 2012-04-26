@@ -57,10 +57,6 @@ CREATE TABLE mremarks
 );
 '''
 
-def interactive(f):
-    f.interactive=True
-    return f
-
 class commands(object):
     def __init__(self):
         super(commands, self).__init__()
@@ -116,11 +112,6 @@ class commands(object):
         cmds = []
         for k, v in sorted(inspect.getmembers(self)):
             if k.startswith('cmd_'):
-                try:
-                    if v.interactive:
-                        print '%s is interactive' % k
-                except:
-                    pass
                 cmd = k[4:].replace('_',' ')
                 argspec = inspect.getargspec(v)
                 args = []
@@ -190,7 +181,6 @@ class commands(object):
         for row in result:
             print row
 
-    @interactive
     def cmd_add_participant(self,
             company, contact, email, nocemail, username,
             companydesc=None, url=None):
@@ -205,7 +195,6 @@ class commands(object):
             username=username)
         print 'participant %s added' % (partid)
 
-    @interactive
     def cmd_add_machine(self,
             participantid, hostname, autnum, country, dc, geo,
             v4=None, v6=None, state=None):
