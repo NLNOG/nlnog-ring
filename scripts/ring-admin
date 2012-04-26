@@ -3,6 +3,64 @@ import sqlite3, sys, inspect
 
 DB='./ring.sqlite'
 
+SCHEMA='''
+CREATE TABLE participants
+(
+    id INTEGER PRIMARY KEY,
+    company TEXT UNIQUE NOT NULL,
+    url TEXT,
+    contact TEXT NOT NULL,
+    email TEXT NOT NULL,
+    nocemail TEXT NOT NULL,
+    companydesc TEXT,
+    username TEXT,
+    userid INTEGER,
+    active INTEGER
+);
+CREATE TABLE machines
+(
+    id INTEGER PRIMARY KEY,
+    hostname TEXT UNIQUE NOT NULL,
+    v4 TEXT UNIQUE,
+    v6 TEXT UNIQUE,
+    autnum INTEGER NOT NULL,
+    country TEXT,
+    state TEXT,
+    dc TEXT,
+    geo TEXT,
+    participant INTEGER NOT NULL,
+    FOREIGN KEY(participant) REFERENCES participants(id)
+);
+CREATE TABLE sshkeys
+(
+    id INTEGER PRIMARY KEY,
+    sshkey TEXT,
+    keyid TEXT,
+    participant INTEGER,
+    FOREIGN KEY(participant) REFERENCES participants(id)
+);
+CREATE TABLE premarks
+(
+    id INTEGER PRIMARY KEY,
+    remark TEXT,
+    tstamp INTEGER,
+    participant INTEGER,
+    FOREIGN KEY(participant) REFERENCES participants(id)
+);
+CREATE TABLE mremarks
+(
+    id INTEGER PRIMARY KEY,
+    remark TEXT,
+    tstamp INTEGER,
+    machine INTEGER,
+    FOREIGN KEY(machine) REFERENCES machines(id)
+);
+'''
+
+def interactive(f):
+    f.interactive=True
+    return f
+
 class commands(object):
     def __init__(self):
         super(commands, self).__init__()
@@ -20,8 +78,26 @@ class commands(object):
 
         if not func:
             return self.usage()
-        func(*args, **kwargs)
+
+        spec = inspect.getargspec(func)
+        reqcount = len(spec.args)-1
+        if spec.defaults:
+            reqcount = reqcount - len(spec.defaults)
+        if reqcount and not len(args) and not len(kwargs):
+            kwargs=self.ask(func)
+        return func(*args, **kwargs)
     
+    def ask(self, func):
+        spec = inspect.getargspec(func)
+        d=dict()
+        for i,k in enumerate(spec.args[1:]):
+            print "%s:" % k,
+            if i >= (len(spec.args)-len(spec.defaults)-1):
+                print "(optional)",
+            v=raw_input()
+            d[k]=v
+        return d
+
     def splitargv(self, argv):
         args = list()
         kwargs = dict()
@@ -40,6 +116,11 @@ class commands(object):
         cmds = []
         for k, v in sorted(inspect.getmembers(self)):
             if k.startswith('cmd_'):
+                try:
+                    if v.interactive:
+                        print '%s is interactive' % k
+                except:
+                    pass
                 cmd = k[4:].replace('_',' ')
                 argspec = inspect.getargspec(v)
                 args = []
@@ -63,10 +144,13 @@ class commands(object):
             print '%-*s %s' % (maxcmdlen+2, cmd, doc)
         return 1
     
-    def dbdo(self, q, v):
+    def dbdo(self, q, v, script=False):
         conn = sqlite3.connect(DB)
         cur = conn.cursor()
-        cur.execute(q, v)
+        if script:
+            cur.executescript(q)
+        else:
+            cur.execute(q, v)
         conn.commit()
         return cur.rowcount, cur.lastrowid
     
@@ -107,15 +191,37 @@ class commands(object):
         for row in result:
             print row
 
-    def cmd_add_participant(self, company, url, autnum, noc_email):
+    @interactive
+    def cmd_add_participant(self,
+            company, contact, email, nocemail, username,
+            companydesc=None, url=None):
         """add a participant"""
-        self.dbinsert('participants', company=company, autnum=autnum, url=url) # noc_email!
+        partid=self.dbinsert('participants',
+            company=company,
+            url=url,
+            contact=contact,
+            email=email,
+            nocemail=nocemail,
+            companydesc=companydesc,
+            username=username)
+        print 'participant %s added' % (partid)
 
-    #[20:09] <job> ring-admin add machine $name $participant $location 
-    def cmd_add_machine(self, participant, name, country):
-        res = self.dbselectone('participants', id=participant)
-        machineid = self.dbinsert('machines', participant=participant, name=name, country=country)
-        print "Added machine %s ('%s' at '%s') for participant '%s'" % (machineid, name, country, res['company'])
+    @interactive
+    def cmd_add_machine(self,
+            participantid, hostname, autnum, country, dc, geo,
+            v4=None, v6=None, state=None):
+        res = self.dbselectone('participants', id=participantid)
+        machineid = self.dbinsert('machines',
+            participant=participantid,
+            hostname=hostname,
+            autnum=autnum,
+            country=country,
+            dc=dc,
+            geo=geo,
+            v4=v4,
+            v6=v6,
+            state=state)
+        print "Added machine %s ('%s' at '%s') for participant '%s'" % (machineid, hostname, country, res['company'])
 
     def cmd_list_participants(self, pid=None):
         if pid:
@@ -125,6 +231,9 @@ class commands(object):
 
     def cmd_list_machines(self):
         self.dblist('machines')
+
+    def cmd_initdb(self):
+        self.dbdo(SCHEMA, None, script=True)
 
 def run(args):
     c = commands()
