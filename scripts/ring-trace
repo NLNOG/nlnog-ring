@@ -7,7 +7,14 @@
 
  Requirements:  python, dnspython, graphviz, argparse, ipcalc
 
+
  Changelog:
+ v1.6           show destination of the trace in label (issue #42)
+                added an additional hop in -a mode (issue #41)
+                faster DNS lookups (issue #40)
+                added flag (-d) for grouping identical edges (issue #39)
+                added flag (-s)  to specify the SSH command to allow ssh-wrapperscripts
+                several minor fixes
  v1.5           rewrote IP lookup code (DNS/ASN)
                 code cleanup
                 optimizations for simpler graphs
@@ -29,7 +36,7 @@
 """
 
 import sys, os, threading, tempfile, time, random, re, operator, itertools
-import urllib, urllib2, socket
+import urllib, urllib2, socket, Queue, types
 
 try:
     from dns.resolver import query
@@ -44,10 +51,12 @@ except:
     print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
     sys.exit(1)
 
-VERSION="1.5.1"
+VERSION="1.6"
 DEBUG=0
 PASTEBIN="https://ring.nlnog.net/paste/"
 CONFIGFILE=os.path.expanduser("~/.ringtrace.cfg")
+MAX_EDGE_WIDTH=4
+MAX_DNS_THREAD=25
 
 colors = []
 
@@ -61,6 +70,7 @@ ixps4 = [
    ("193.109.219.0/24", "Lipex", 0),
    ("193.203.5.0/24", "Lonap", 0),
    ("206.223.115.0/24", "Equinix Ashburn", 0),
+   ("206.223.116.0/24", "Equinix San Jose", 1),
    ("206.223.119.0/25", "Equinix Chicago", 0),
    ("206.223.118.0/25", "Equinix Dallas", 0),
    ("206.223.123.0/25", "Equinix Los Angeles", 0),
@@ -456,9 +466,34 @@ ixps6 = [
 ]
 
 
+class LookupThread(threading.Thread):
+    
+    def __init__(self, index, queue):
+        self.queue = queue
+        self.result = {}
+        self.index = index
+        threading.Thread.__init__(self)
+
+
+    def run(self):
+        while True:
+            ip = self.queue.get()
+            try:
+                res = socket.gethostbyaddr(ip)
+                self.result[ip] = res[0]
+            except:
+                self.result[ip] = "unknown"
+            self.queue.task_done()
+
+
+    def get_result(self):
+        return self.result
+
+
+
 class TraceThread(threading.Thread):
 
-    def __init__(self, host, destination, user, proto, udp, timeout):
+    def __init__(self, host, destination, user, proto, udp, timeout, sshcommand):
         self.starttime = time.time()
         self.host = host
         self.dest = destination
@@ -466,13 +501,15 @@ class TraceThread(threading.Thread):
         self.proto = proto
         self.udp = udp
         self.timeout = timeout
+        self.sshcommand = sshcommand
         self.result  = ""
         threading.Thread.__init__(self)
 
     
     def run(self):
         # run the mtr command
-        cmd = "ssh %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s --report-wide -c1 -r -n %s %s\"" % (
+        cmd = "%s %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s --report-wide -c1 -r -n %s %s\"" % (
+            self.sshcommand,
             "-v" if DEBUG > 1 else "",
             self.timeout,
             "-l %s" % self.user if self.user != None else "",
@@ -551,7 +588,7 @@ def get_hostlist():
     return hosts
 
 
-def traceroutes(hosts, destination, user, proto, udp, timeout):
+def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
     """Perform all traceroutes.
     """
 
@@ -560,7 +597,7 @@ def traceroutes(hosts, destination, user, proto, udp, timeout):
     
     # launch all threads
     for host in hosts:
-        threads[host] = TraceThread(host, destination, user, proto, udp, timeout)
+        threads[host] = TraceThread(host, destination, user, proto, udp, timeout, sshcommand)
         threads[host].start()
 
     # wait for all threads to end
@@ -619,26 +656,37 @@ def analyse(traceroutes, resolve):
         print "Failed to lookup ASNs at cymru.com."
         return iplist
     for line in lookups:
-        (asn, ip, country, desc) = [item.strip() for item in line.split("|")]
-        iplist[ip]["fqdn"] =  ""
-        iplist[ip]["asn"] =  "unknown" if asn == "NA" else asn
-        iplist[ip]["country"] =  country
-        iplist[ip]["desc"] =  "unknown" if desc == "NA" else desc
-        iplist[ip]["ix"] =  False
+        try:
+            (asn, ip, country, desc) = [item.strip() for item in line.split("|")]
+            iplist[ip]["fqdn"] =  ""
+            iplist[ip]["asn"] =  "unknown" if asn == "NA" else asn
+            iplist[ip]["country"] =  country
+            iplist[ip]["desc"] =  "unknown" if desc == "NA" else desc
+            iplist[ip]["ix"] =  False
+        except: 
+            debug("Failed to parse ASN lookup line: %s" % line)
 
     # DNS lookups of fqdns
     debug("Looking up DNS entries.")
-    l_ok, l_fail = 0, 0
-    for ip in iplist.keys():
-            try:
-                qres = query(reversename.from_address(ip).to_text(), 'PTR')
-                fqdn = qres[0].to_text()
-                iplist[ip]["fqdn"] = fqdn
-                l_ok += 1
-            except:
-                iplist[ip]["fqdn"] = 'unknown'
-                l_fail += 1
-    debug("DNS lookups: %d ok, %d failed" % (l_ok, l_fail))
+    threads = {}
+    queue = Queue.Queue()
+
+    for i in range(MAX_DNS_THREAD):
+        threads[i] = LookupThread(i, queue)
+        threads[i].setDaemon(True)
+        threads[i].start()
+
+    ips = iplist.keys()
+    for ip in ips:
+        queue.put(ip)
+
+    queue.join()
+    for i in range(MAX_DNS_THREAD):
+        result = threads[i].get_result()
+        for ip in result.keys():
+            iplist[ip]["fqdn"] = result[ip]
+
+    debug("%d DNS lookups done." % len(iplist))
     
     debug("Checking IXP lists.")
     # check for each IP if it's an IXP address
@@ -660,7 +708,7 @@ def analyse(traceroutes, resolve):
 
 
 def graph(traces, tracedata, destination, resolve, asn, no_ixp, 
-          show_country, remove_broken, highlight_ixp):
+          show_country, remove_broken, highlight_ixp, remove_duplicate):
     """Generate the entire graph.
     """
 
@@ -668,13 +716,14 @@ def graph(traces, tracedata, destination, resolve, asn, no_ixp,
 digraph G { 
     fontsize=7 
     fontcolor="#777777" 
-    labeljust=r 
-    label="ring-trace v%s - https://ring.nlnog.net"
-""" % VERSION
+    labeljust=r
+    label="ring-trace v%s to %s - https://ring.nlnog.net"
+""" % (VERSION, destination)
     count = 0
     # using dicts to make nodes and edges unique
     nodes = {}
     edges = {}
+    edgelist = {}
     for host in traces.keys():
         ips = [x.split(" ")[1] for x in traces[host]]
 
@@ -692,13 +741,16 @@ digraph G {
 
             # make a list of the asns, showing each asn only once
             asns = [key for key,i in itertools.groupby(a)]
+            # additional first hop to distinguish between different nodes in the same asn
+            asns.insert(0, a[0])
 
             for index in range(0, len(asns)):
                 fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(asns)-1 else "#ddffdd" if (asns[index][1] and highlight_ixp) else "#ffffff"
+
                 if asns[index][1]:
                     label = "%s%s" % (
                         "%s\\n" % host if index == 0 else "",
-                        asns[index][2].split(" ")[0],
+                        asns[index][2],
                     )
                 else:
                     label = "%s%s\\nAS%s" % (
@@ -706,18 +758,20 @@ digraph G {
                         asns[index][2].split(" ")[0], 
                         asns[index][0]
                     )
-                nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\"]" % (
-                    asns[index][0], count if index == 0 else 0,
-                    colors[count % len(colors)] if (index ==0) else "black",
+                nodes["    node%s_%d%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\"]" % (
+                    asns[index][0], count if index == 0 else 0, "f" if index == 0 else "",
+                    colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
                     label, fc,
                 )] = 1
-
+                
                 if index < len(asns)-1:
-                    edges["    node%s_%d -> node%s_0 [color=\"%s\"]\n" % (
-                        asns[index][0], count if index == 0  else 0,
+                    edgename = "node%s_%d%s -> node%s_0" % (
+                        asns[index][0], count if index == 0  else 0, "f" if index == 0 else "",
                         asns[index + 1][0], 
-                        colors[count % len(colors)]
-                    )] = 1
+                    )
+                    l = edgelist.get(edgename, [])
+                    l.append(colors[count % len(colors)])
+                    edgelist[edgename] = l
         else:
             if remove_broken:
                 # remove unkown entries
@@ -743,22 +797,31 @@ digraph G {
                 nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
                     ips[index].replace(':','_').replace('?', 'X').replace('.', '_'), 
                     count if index == 0 else 0,
-                    colors[count % len(colors)] if (index ==0) else "black",
+                    colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
                     label,
                     fc,
                 )] = 1
 
                 if index < len(ips)-1:
-                    edges["    node%s_%d -> node%s_0 [color=\"%s\"] \n" % (
+                    edgename = "node%s_%d -> node%s_0" % (
                         ips[index].replace(':','_').replace('?','X').replace('.','_'), 
                         count if index == 0 else 0,
                         ips[index + 1].replace(':','_').replace('?','X').replace('.','_'), 
-                        colors[count % len(colors)]
-                    )] = 1
+                    )
+                    l = edgelist.get(edgename, [])
+                    l.append(colors[count % len(colors)])
+                    edgelist[edgename] = l
 
         count += 1
+
+    for e in edgelist.keys():
+        for l in edgelist[e]:
+            edges["    %s [color=\"%s\"] [penwidth=%d]" % (
+                 e, "black" if remove_duplicate else l,
+                min(len(edgelist[e]), MAX_EDGE_WIDTH) if remove_duplicate else 1,
+            )] = 1
     result = "%s\n%s\n%s" % (result, "\n".join(nodes.keys()), "\n".join(edges.keys()))
-    result = "%s}" % result
+    result = "%s\n}\n" % result
 
     return result
 
@@ -772,6 +835,7 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
             fh = open(outfile, 'w')
             fh.write(dot + "\n")
             fh.close()
+            print "Wrote image to output file '%s'." % outfile
         except:
             print "Failed to save the image to %s" % outfile
             sys.exit(1)
@@ -850,26 +914,28 @@ def read_config():
 
     # here is our default config
     config = {
-        "groupbyasn":   False,          # flag: -a, --asn
-        "pastebin":     False,          # flag: -b, --pastebin
-        "removebroken": False,          # flag: -B, --remove-broken-hops
-        "showcountry":  False,          # flag: -c, --show-country
-        "excludehosts": [],             # flag: -e, --exclude
-        "includehosts": [],             # flag: -i, --include
-        "layout":       "dot",          # flag: -l, --layout
-        "usenodes":     -1,             # flag: -n, --random
-        "filename":     None,           # flag: -o, --outfile
-        "topnodes":     0,              # flag: -p, --hops
-        "resolve":      False,          # flag: -r, --resolve
-        "filetype":     "jpg",          # flag: -t, --type
-        "sshtimeout":   10,             # flag: -T, --timeout
-        "user":         None,           # flag: -u, --user
-        "udp":          False,          # flag: -U, --udp
-        "verbose":      0,              # flag: -v / -vv, --verbose, --extra-verbose
-        'excludeixp':   False,          # flag: -x, --exclude-ixp
-        "highlightixp": False,          # flag: -X, --highlight-ixp-hops
-        "ipv4":         False,          # flag: -4, --ipv4
-        "ipv6":         False,          # flag: -6, --ipv6
+        "groupbyasn":       False,          # flag: -a, --asn
+        "pastebin":         False,          # flag: -b, --pastebin
+        "removebroken":     False,          # flag: -B, --remove-broken-hops
+        "showcountry":      False,          # flag: -c, --show-country
+        "removeduplicate":  False,          # flag: -d, --remove-duplicate-edges
+        "excludehosts":     [],             # flag: -e, --exclude
+        "includehosts":     [],             # flag: -i, --include
+        "layout":           "dot",          # flag: -l, --layout
+        "usenodes":         -1,             # flag: -n, --random
+        "filename":         None,           # flag: -o, --outfile
+        "topnodes":         0,              # flag: -p, --hops
+        "resolve":          False,          # flag: -r, --resolve
+        "sshcommand":       "ssh",          # flag: -s, --ssh-command
+        "filetype":         "jpg",          # flag: -t, --type
+        "sshtimeout":       10,             # flag: -T, --timeout
+        "user":             None,           # flag: -u, --user
+        "udp":              False,          # flag: -U, --udp
+        "verbose":          0,              # flag: -v / -vv, --verbose, --extra-verbose
+        'excludeixp':       False,          # flag: -x, --exclude-ixp
+        "highlightixp":     False,          # flag: -X, --highlight-ixp-hops
+        "ipv4":             False,          # flag: -4, --ipv4
+        "ipv6":             False,          # flag: -6, --ipv6
     }
 
     conftypes = {
@@ -879,12 +945,14 @@ def read_config():
         "excludehosts":     "list",   
         "showcountry":      "bool",
         "removebroken":     "bool",
+        "removeduplicate":  "bool",
         "highlightixp":     "bool",
         "layout":           "enum:dot,neato,fdp,sfdp,twopi,circo",
         "usenodes":         "int",       
         "filename":         "str",
         "topnodes":         "int",       
         "resolve":          "bool",       
+        "sshcommand":       "str",
         "filetype":         "enum:dot,gif,jpg,pdf,png,ps,svg",
         "sshtimeout":       "int",     
         "user":             "str",           
@@ -990,6 +1058,14 @@ if __name__ == "__main__":
         const=True
     )
     parser.add_argument(
+        "-d", "--remove-duplicate-edges", 
+        action="store_const", 
+        dest="remove_duplicate", 
+        help="remove duplicate edges from output image", 
+        default=conf['removeduplicate'], 
+        const=True
+    )
+    parser.add_argument(
         "-e", "--exclude", 
         action="append", 
         dest="exclude", 
@@ -1044,6 +1120,13 @@ if __name__ == "__main__":
         help="try to resolve all addresses (WARNING: can take long!)",
         const=True,
         default=conf["resolve"],  
+    )
+    parser.add_argument(
+        "-s", "--ssh-command", 
+        action="store", 
+        dest="sshcommand", 
+        help="(alternative) command to use for SSH (to allow the use of wrappers)",
+        default=conf["sshcommand"],  
     )
     parser.add_argument(
         "-t", "--type", 
@@ -1171,7 +1254,7 @@ if __name__ == "__main__":
         "UDP" if ns.udp else "ICMP",
         ns.destination, len(hosts), ns.timeout)
     debug('performing traces.')
-    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout)
+    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout, ns.sshcommand)
 
     debug('analysing traces.')
     tracedata = analyse(traces, ns.resolve and not ns.asn)
@@ -1198,7 +1281,7 @@ if __name__ == "__main__":
 
     debug('generating graphs.')
     dot = graph(traces, tracedata, destination, ns.resolve, ns.asn, ns.no_ixp, 
-        ns.show_country, ns.remove_broken, ns.highlight_ixp)
+        ns.show_country, ns.remove_broken, ns.highlight_ixp, ns.remove_duplicate)
 
     debug('generating output file.')
     outfile = ns.outfile
