@@ -729,7 +729,7 @@ digraph G {
 
         if asn:
             # asns instead of ips
-            a = [(tracedata[ip]["asn"],tracedata[ip]["ix"],tracedata[ip]["desc"], "") for ip in ips if not (tracedata[ip]["ix"] and no_ixp)]
+            a = [(tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), "") for ip in ips if not (tracedata[ip].get("ix", False) and no_ixp)]
 
             if remove_broken:
                 # remove unkown entries
@@ -790,7 +790,7 @@ digraph G {
                 label = "%s%s\\nAS%s - %s" % (
                     ips[index],
                     "\\n%s" % tracedata[ips[index]]['fqdn'] if (index == 0 or resolve) else "",
-                    tracedata[ips[index]]['asn'], tracedata[ips[index]]['desc'].split(' ')[0],
+                    tracedata[ips[index]].get('asn', ' unknown'), tracedata[ips[index]].get('desc', '').split(' ')[0],
                 )
                 if show_country:
                     label = "%s (%s)" % (label, tracedata[ips[index]]['country'])
