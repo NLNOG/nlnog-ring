@@ -44,6 +44,7 @@ hostname -F /etc/hostname
 
 # add /etc/hosts 
 echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
+echo "2001:6e0:100:4001::3 master01 master01.ring.nlnog.net puppet" >> /etc/hosts
 
 # install puppet
 
