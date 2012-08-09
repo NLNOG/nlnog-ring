@@ -44,6 +44,16 @@ If you want to add additional ssh keys, place them on NODE_NAME in /home/OWNER_N
 For further instruction on how to use the ring, see: https://ring.nlnog.net/user-guide/
 
 You are welcome to join the ring-users mailinglist, which is used for announcements and discussions among RING users. You can find the list at http://mailman.ring.nlnog.net/cgi-bin/mailman/listinfo/ring-users
+We also operate an IRC channel: #ring on IRCnet.
+
+Finally, you are invited to peer with our looking glass. The looking glass service is available for all RING members via ssh on lg1.ring.nlnog.net, and web on http://lg.ring.nlnog.net/.
+Peering with this Looking Glass is optional for ring users. If you want to peer with NLNOG RING, send us your details and setup a session with the following information:
+
+    AS: 199036
+    IPv4: 82.94.230.130
+    IPv6: 2001:888:2001::130
+    Type: eBGP Multi-Hop
+    Policy: import NONE from AS199036, export ANY
 
 Kind regards,
 
