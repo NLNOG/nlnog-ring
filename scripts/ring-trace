@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.6.1         minor fix for empty traces
  v1.6           show destination of the trace in label (issue #42)
                 added an additional hop in -a mode (issue #41)
                 faster DNS lookups (issue #40)
@@ -606,7 +607,11 @@ def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
 
     # gather all results
     for host in hosts:
-        result[host] = threads[host].get_result()
+        r = threads[host].get_result()
+        if len(r) > 1:
+            result[host] = threads[host].get_result()
+        else:
+            print "Host %s returned no trace." % host
 
     return result
 
@@ -1255,6 +1260,10 @@ if __name__ == "__main__":
         ns.destination, len(hosts), ns.timeout)
     debug('performing traces.')
     traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout, ns.sshcommand)
+
+    if len(traces) == 0:
+        print "No traces retrieved."
+        sys.exit(1)
 
     debug('analysing traces.')
     tracedata = analyse(traces, ns.resolve and not ns.asn)
