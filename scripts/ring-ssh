@@ -2,6 +2,10 @@
 # Written by Martin Pels <martin@rodecker.nl>
 # Improved by Miek Gieben <miek@miek.nl>
 
+if [ $# -eq 0 ]; then
+    echo $0: need ssh command line >&2
+    exit 1
+fi
 export SSH_AUTH_SOCK=${TMPDIR:-/tmp}"/ssh-ring-$LOGNAME/agent.ring"
 if [ ! -d $(dirname $SSH_AUTH_SOCK) ]; then
     mkdir $(dirname $SSH_AUTH_SOCK)
