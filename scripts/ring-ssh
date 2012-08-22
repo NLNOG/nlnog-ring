@@ -2,7 +2,7 @@
 # Written by Martin Pels <martin@rodecker.nl>
 # Improved by Miek Gieben <miek@miek.nl>
 
-export SSH_AUTH_SOCK=${TMPDIR:-/tmp}"/ssh-ring/agent.ring"
+export SSH_AUTH_SOCK=${TMPDIR:-/tmp}"/ssh-ring-$LOGNAME/agent.ring"
 if [ ! -d $(dirname $SSH_AUTH_SOCK) ]; then
     mkdir $(dirname $SSH_AUTH_SOCK)
 fi
