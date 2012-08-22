@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Written by Martin Pels <martin@rodecker.nl>
+# Improved by Miek Gieben <miek@miek.nl>
 
-keyfile=~/.ssh/nlnog.key
-agentfile=/tmp/nlnog_sshagent
-
-export SSH_AUTH_SOCK=$agentfile
-if [ ! -S $agentfile ];
+export SSH_AUTH_SOCK=${TMPDIR:-/tmp}"/ssh-ring/agent.ring"
+if [ ! -d $(dirname $SSH_AUTH_SOCK) ]; then
+    mkdir $(dirname $SSH_AUTH_SOCK)
+fi
+if [ ! -S $SSH_AUTH_SOCK ];
 then 
-    ssh-agent -a $SSH_AUTH_SOCK
-    ssh-add $keyfile
+    eval $(ssh-agent -a $SSH_AUTH_SOCK)
+    ssh-add ~/.ssh/ring.nlnog.net
 fi
 ssh -A $@
