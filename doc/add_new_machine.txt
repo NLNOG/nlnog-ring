@@ -34,7 +34,8 @@ lscpu
 #
 
 # Setup AMP measuring
-ring-puppet/modules/amp/tools/create_files
+cd modules/amp/tools/
+./create_files
 
 git commit -am '<your message>'
 git push && ssh master01.ring.nlnog.net sudo ring-puppet-repo-sync
