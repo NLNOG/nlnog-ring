@@ -1,0 +1,339 @@
+#!/usr/bin/env python
+import sqlite3, sys, inspect, re, time
+from subprocess import call
+
+DB='/var/spool/powerdns/pdns.sqlite'
+ZONE='ring.nlnog.net'
+SOA='ns01.ring.nlnog.net. ring-admins.ring.nlnog.net. %.0f 7200 3600 1209600 900' % time.time()
+
+SCHEMA='''
+create table domains (
+  id                INTEGER PRIMARY KEY,
+  name              VARCHAR(255) NOT NULL COLLATE NOCASE,
+  master            VARCHAR(128) DEFAULT NULL,
+  last_check        INTEGER DEFAULT NULL,
+  type              VARCHAR(6) NOT NULL,
+  notified_serial   INTEGER DEFAULT NULL,
+  account           VARCHAR(40) DEFAULT NULL
+);
+
+CREATE UNIQUE INDEX name_index ON domains(name);
+
+CREATE TABLE records (
+  id              INTEGER PRIMARY KEY,
+  domain_id       INTEGER DEFAULT NULL,
+  name            VARCHAR(255) DEFAULT NULL,
+  type            VARCHAR(10) DEFAULT NULL,
+  content         VARCHAR(65535) DEFAULT NULL,
+  ttl             INTEGER DEFAULT NULL,
+  prio            INTEGER DEFAULT NULL,
+  change_date     INTEGER DEFAULT NULL
+);
+
+CREATE INDEX rec_name_index ON records(name);
+CREATE INDEX nametype_index ON records(name,type);
+CREATE INDEX domain_id ON records(domain_id);
+
+create table supermasters (
+  ip          VARCHAR(25) NOT NULL,
+  nameserver  VARCHAR(255) NOT NULL COLLATE NOCASE,
+  account     VARCHAR(40) DEFAULT NULL
+);
+alter table records add ordername      VARCHAR(255);
+alter table records add auth bool;
+create index orderindex on records(ordername);
+
+create table domainmetadata (
+ id      INTEGER PRIMARY KEY,
+ domain_id       INT NOT NULL,
+ kind        VARCHAR(16) COLLATE NOCASE,
+ content    TEXT
+);
+
+create index domainmetaidindex on domainmetadata(domain_id);
+
+create table cryptokeys (
+ id     INTEGER PRIMARY KEY,
+ domain_id      INT NOT NULL,
+ flags      INT NOT NULL,
+ active     BOOL,
+ content    TEXT
+);
+
+create index domainidindex on cryptokeys(domain_id);
+
+create table tsigkeys (
+ id     INTEGER PRIMARY KEY,
+ name       VARCHAR(255) COLLATE NOCASE,
+ algorithm  VARCHAR(50) COLLATE NOCASE,
+ secret     VARCHAR(255)
+);
+
+create unique index namealgoindex on tsigkeys(name, algorithm);
+'''
+
+class commands(object):
+    def __init__(self):
+        super(commands, self).__init__()
+
+    def run(self, argv):
+        func = None
+        for i in reversed(range(len(argv))):
+            try:
+                func = getattr(self, 'cmd_'+'_'.join(argv[0:i+1]))
+
+                args, kwargs = self.splitargv(argv[i+1:])
+                break
+            except AttributeError:
+                pass
+
+        if not func:
+            return self.usage()
+
+        spec = inspect.getargspec(func)
+        reqcount = len(spec.args)-1
+        if spec.defaults:
+            reqcount = reqcount - len(spec.defaults)
+        if reqcount and not len(args) and not len(kwargs):
+            kwargs=self.ask(func)
+        return func(*args, **kwargs)
+    
+    def ask(self, func):
+        spec = inspect.getargspec(func)
+        d=dict()
+        for i,k in enumerate(spec.args[1:]):
+            print "%s:" % k,
+            if i >= (len(spec.args)-len(spec.defaults)-1):
+                print "(optional)",
+            v=raw_input()
+            d[k]=v
+        return d
+
+    def splitargv(self, argv):
+        args = list()
+        kwargs = dict()
+        for arg in argv:
+            if '=' in arg:
+                k,v = arg.split('=',1)
+                kwargs[k]=v
+            else:
+                if kwargs:
+                    raise SyntaxError
+                args.append(arg)
+        
+        return args, kwargs
+
+    def usage(self):
+        cmds = []
+        for k, v in sorted(inspect.getmembers(self)):
+            if k.startswith('cmd_'):
+                cmd = k[4:].replace('_',' ')
+                argspec = inspect.getargspec(v)
+                args = []
+                if argspec.defaults:
+                    defcount = len(argspec.defaults)
+                    for arg in argspec.args[1:-defcount]:
+                        args.append('<%s>' % arg)
+                    for arg in argspec.args[-defcount:]:
+                        args.append('[%s]' % arg)
+                else:
+                    for arg in argspec.args[1:]:
+                        args.append('<%s>' % arg)
+                doc=v.__doc__
+                if not doc:
+                    doc=''
+                cmds.append(('%s %s' % (cmd, ' '.join(args)), doc))
+
+        maxcmdlen = max(len(cmd[0]) for cmd in cmds)
+        for cmd, doc in cmds:
+            print '%-*s %s' % (maxcmdlen+2, cmd, doc)
+        return 1
+    
+    def dbdo(self, q, script=False):
+        conn = sqlite3.connect(DB)
+        cur = conn.cursor()
+        if script:
+            cur.executescript(q)
+        else:
+            cur.execute(q)
+        conn.commit()
+	conn.close()
+        return cur.rowcount, cur.lastrowid
+    
+    def dbquery(self, q, v=None):
+        conn = sqlite3.connect(DB)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        if v:
+            cur.execute(q, v)
+        else:
+            cur.execute(q)
+        for row in cur:
+            yield row
+	conn.close()
+
+    def dbselect(self, table, **kwargs):
+        cols, vals = zip(*kwargs.items())
+        query = 'SELECT * FROM %s WHERE %s' % (table, ' '.join('%s=?' % col for col in cols))
+        return self.dbquery(query, vals)
+
+    def dbselectone(self, table, **kwargs):
+        res = list(self.dbselect(table, **kwargs))
+        if len(res)>1:
+            raise KeyError
+        elif res:
+            return res[0]
+        else:
+            return None
+        
+    def dblist(self, table):
+        query = 'SELECT * FROM %s' % table
+        result = self.dbquery(query)
+        for row in result:
+            print row
+
+    def add_domain(self,zone=ZONE):
+	query="INSERT INTO domains (name, type) values ('%s', 'NATIVE')" % (zone)
+	_, rowid = self.dbdo(query)
+	return rowid
+	
+    def del_domain(self,pid):
+	query = "delete from domains where id=%s" % (pid)
+	self.dbdo(query)
+
+    def add_record(self,name,rtype,content,ttl,prio,zone=ZONE):
+	if not (re.match(r'.*%s$' % zone,name)):
+	    name=name + "." + zone
+	query = "insert into records (domain_id, name,type,content,ttl,prio) select id ,'%s', '%s', '%s', %s, %s " \
+		"from domains where name='%s'" % (name,rtype,content,ttl,prio,zone)
+	_, rowid = self.dbdo(query)
+	self.update_soa()
+	self.rectify_zone()
+	return rowid
+    
+    def del_record(self,pid):
+	query = "delete from records where id=%s" % (pid)
+	self.dbdo(query)
+	self.update_soa()
+	self.rectify_zone()
+    
+    def update_record(self,id,content):
+	query = "update records set content='%s' where id=%s" % (content,id)
+	_, rowid = self.dbdo(query)
+	self.update_soa()
+	self.rectify_zone()
+	return rowid
+
+    def add_to_txt(self,name,zone=ZONE):
+	name=re.sub('.' + ZONE,'',name)
+        result = self.dbselect('records', type='TXT')
+	update = None
+	newtxt = None
+        for row in result:
+	    id= row[0]
+	    txt = row[4]
+	    txt=re.sub('\"','',txt)
+	    newtxt=txt + " " + name
+	    if (len(newtxt) <= 255):
+		update=id
+		break
+
+	result = None
+	if update is not None:
+	    self.update_record(update,newtxt)
+	    print "record %s updated" % id
+	else:
+	    recid = self.add_record(ZONE,'TXT',name,600,0);
+	    print 'record %s added' % (recid)
+ 
+    def del_from_txt(self,name,zone=ZONE):
+	name=re.sub('.' + ZONE,'',name)
+        result = self.dbselect('records', type='TXT')
+	update = None
+	newtxt = None
+        for row in result:
+	    id= row[0]
+	    txt = row[4]
+	    txt=re.sub('\"','',txt)
+	    if (re.search(r'(^|\s+)%s($|\s+)' % name,txt)):
+		newtxt=re.sub(r'\s?%s\s?' % name,'',txt)
+		update=id
+		break
+
+	result = None
+	if update is not None:
+	    if (len(newtxt) > 0):
+	    	self.update_record(update,newtxt)
+	    	print "record %s updated" % id
+	    else:
+	    	self.del_record(update);
+	    	print 'record %s deleted' % (update)
+
+    def update_soa(self,zone=ZONE):
+	query = "update records set content='%s' where name='%s' and type='SOA'" % (SOA,zone);
+	self.dbdo(query)
+
+    def rectify_zone(self,zone=ZONE):
+	call(["pdnssec", "rectify-zone", zone])
+
+    def cmd_add_record(self,name,rtype,content,ttl=600,prio=0):
+	"""add a record"""
+	recid=self.add_record(name=name,rtype=rtype,content=content,ttl=ttl,prio=prio)
+	print 'record %s added' % (recid)
+    
+    def cmd_del_record(self,pid):
+	"""delete a record"""
+	self.del_record(pid)
+	print 'record %s deleted' % (pid)
+
+    def cmd_list_records(self,pid=None):
+	"""list records"""
+        if pid:
+            print self.dbselectone('records', id=pid)
+        else:
+            self.dblist('records')
+
+    def cmd_activate_node(self,name):
+	"""add the TXT entry for a node"""
+	self.add_to_txt(name);
+	print 'node %s activated' % (name)
+    
+    def cmd_deactivate_node(self,name):
+	"""remove the TXT entry for a node"""
+	self.del_from_txt(name);
+	print 'node %s deactivated' % (name)
+
+    def cmd_initdb(self):
+	"""initialize database"""
+        self.dbdo(SCHEMA, script=True)
+	print 'database initialized'
+
+    def cmd_add_domain(self,zone=ZONE):
+	"""add a domain"""
+	domainid=self.add_domain(zone)
+	print 'domain %s added' % (domainid)
+    
+    def cmd_list_domains(self,pid=None):
+	"""list domains"""
+        if pid:
+            print self.dbselectone('domains', id=pid)
+        else:
+            self.dblist('domains')
+    
+    def cmd_del_domain(self,pid):
+	"""delete a domain"""
+	domainid=self.del_domain(pid)
+	print 'domain %s deleted' % (pid)
+
+    def cmd_add_soa(self,zone=ZONE):
+	"""add the SOA for a domain"""
+	recid=self.add_record(zone,'SOA',SOA,3600,0)
+	print 'record %s added' % (recid)
+	
+def run(args):
+    c = commands()
+    c.run(args)
+
+if __name__ == "__main__":
+    c = commands()
+    sys.exit(c.run(sys.argv[1:]))
