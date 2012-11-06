@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sqlite3, sys, inspect,re
+import sqlite3, sys, inspect, re, time
 
 DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
@@ -218,10 +218,14 @@ class commands(object):
         """delete a participant"""
         participant=self.dbselectone('participants', username=username)
         partid=participant['id'];
-        self.dbdelete('machines',participant=partid);
-        print 'machines for participant %s deleted' % (username)
+        result=self.dbselect('machines', participant=partid)
+        for row in result:
+            sys.exit('participant %s still has machines' % username);
+
         self.dbdelete('sshkeys',participant=partid);
         print 'sshkeys for participant %s deleted' % (username)
+        self.dbdelete('premarks',participant=partid);
+        print 'remarks for participant %s deleted' % (username)
         self.dbdelete('participants',username=username);
         print 'participant %s deleted' % (username)
     
@@ -254,6 +258,10 @@ class commands(object):
         """delete a machine"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
+        machine=self.dbselectone('machines', hostname=hostname)
+        machid=machine['id'];
+        self.dbdelete('mremarks',machine=machid);
+        print 'remarks for machine %s deleted' % (hostname)
         self.dbdelete('machines',hostname=hostname);
         print 'machine %s deleted' % (hostname)
     
@@ -283,7 +291,7 @@ class commands(object):
         partid=participant['id'];
         kid = self.dbinsert('sshkeys',
             participant=partid,
-            keytype=keytype
+            keytype=keytype,
             sshkey=sshkey,
             keyid=keyid)
         print "Added key %s for participant '%s'" % (kid, participant['company'])
@@ -298,6 +306,58 @@ class commands(object):
         participant=self.dbselectone('participants', username=username)
         partid=participant['id'];
         result=self.dbselect('sshkeys', participant=partid)
+        for row in result:
+            print row
+    
+    def cmd_add_premark(self,username,remark):
+        """add a participant remark"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        tstamp=time.time()
+        rid = self.dbinsert('premarks',
+            participant=partid,
+            remark=remark,
+            tstamp=tstamp)
+        print "Added remark %s for participant '%s'" % (rid, participant['company'])
+    
+    def cmd_delete_premark(self,id):
+        """delete a participant remark"""
+        self.dbdelete('premarks',id=id);
+        print 'remark %s deleted' % (id)
+    
+    def cmd_list_premarks(self,username):
+        """list participant remarks"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        result=self.dbselect('premarks', participant=partid)
+        for row in result:
+            print row
+    
+    def cmd_add_mremark(self,hostname,remark):
+        """add a machine remark"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        machine=self.dbselectone('machines', hostname=hostname)
+        machid=machine['id'];
+        tstamp=time.time()
+        rid = self.dbinsert('mremarks',
+            machine=machid,
+            remark=remark,
+            tstamp=tstamp)
+        print "Added remark %s for machine %s" % (rid, hostname)
+    
+    def cmd_delete_mremark(self,id):
+        """delete a machine remark"""
+        self.dbdelete('mremarks',id=id);
+        print 'remark %s deleted' % (id)
+    
+    def cmd_list_mremarks(self,hostname):
+        """list machine remarks"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        machine=self.dbselectone('machines', hostname=hostname)
+        machid=machine['id'];
+        result=self.dbselect('mremarks', machine=machid)
         for row in result:
             print row
 
