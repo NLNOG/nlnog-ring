@@ -157,7 +157,7 @@ class commands(object):
         else:
             cur.execute(q)
         conn.commit()
-	conn.close()
+        conn.close()
         return cur.rowcount, cur.lastrowid
     
     def dbquery(self, q, v=None):
@@ -170,7 +170,7 @@ class commands(object):
             cur.execute(q)
         for row in cur:
             yield row
-	conn.close()
+        conn.close()
 
     def dbselect(self, table, **kwargs):
         cols, vals = zip(*kwargs.items())
@@ -193,143 +193,151 @@ class commands(object):
             print row
 
     def add_domain(self,zone=ZONE):
-	query="INSERT INTO domains (name, type) values ('%s', 'NATIVE')" % (zone)
-	_, rowid = self.dbdo(query)
-	return rowid
-	
+        query="INSERT INTO domains (name, type) values ('%s', 'NATIVE')" % (zone)
+        _, rowid = self.dbdo(query)
+        return rowid
+        
     def del_domain(self,pid):
-	query = "delete from domains where id=%s" % (pid)
-	self.dbdo(query)
+        query = "delete from domains where id=%s" % (pid)
+        self.dbdo(query)
 
     def add_record(self,name,rtype,content,ttl,prio,zone=ZONE):
-	if not (re.match(r'.*%s$' % zone,name)):
-	    name=name + "." + zone
-	query = "insert into records (domain_id, name,type,content,ttl,prio) select id ,'%s', '%s', '%s', %s, %s " \
-		"from domains where name='%s'" % (name,rtype,content,ttl,prio,zone)
-	_, rowid = self.dbdo(query)
-	self.update_soa()
-	self.rectify_zone()
-	return rowid
+        if not (re.match(r'.*%s$' % zone,name)):
+            name=name + "." + zone
+        query = "insert into records (domain_id, name,type,content,ttl,prio) select id ,'%s', '%s', '%s', %s, %s " \
+                "from domains where name='%s'" % (name,rtype,content,ttl,prio,zone)
+        _, rowid = self.dbdo(query)
+        self.update_soa()
+        self.rectify_zone()
+        return rowid
     
     def del_record(self,pid):
-	query = "delete from records where id=%s" % (pid)
-	self.dbdo(query)
-	self.update_soa()
-	self.rectify_zone()
+        query = "delete from records where id=%s" % (pid)
+        self.dbdo(query)
+        self.update_soa()
+        self.rectify_zone()
     
     def update_record(self,id,content):
-	query = "update records set content='%s' where id=%s" % (content,id)
-	_, rowid = self.dbdo(query)
-	self.update_soa()
-	self.rectify_zone()
-	return rowid
+        query = "update records set content='%s' where id=%s" % (content,id)
+        _, rowid = self.dbdo(query)
+        self.update_soa()
+        self.rectify_zone()
+        return rowid
 
     def add_to_txt(self,name,zone=ZONE):
-	name=re.sub('.' + ZONE,'',name)
+        name=re.sub('.' + ZONE,'',name)
         result = self.dbselect('records', type='TXT')
-	update = None
-	newtxt = None
+        update = None
+        newtxt = None
         for row in result:
-	    id= row[0]
-	    txt = row[4]
-	    txt=re.sub('\"','',txt)
-	    newtxt=txt + " " + name
-	    if (len(newtxt) <= 255):
-		update=id
-		break
+            id= row[0]
+            txt = row[4]
+            txt=re.sub('\"','',txt)
+            newtxt=txt + " " + name
+            if (len(newtxt) <= 255):
+                update=id
+                break
 
-	result = None
-	if update is not None:
-	    self.update_record(update,newtxt)
-	    print "record %s updated" % id
-	else:
-	    recid = self.add_record(ZONE,'TXT',name,600,0);
-	    print 'record %s added' % (recid)
+        result = None
+        if update is not None:
+            self.update_record(update,newtxt)
+            print "record %s updated" % id
+        else:
+            recid = self.add_record(ZONE,'TXT',name,600,0);
+            print 'record %s added' % (recid)
  
     def del_from_txt(self,name,zone=ZONE):
-	name=re.sub('.' + ZONE,'',name)
+        name=re.sub('.' + ZONE,'',name)
         result = self.dbselect('records', type='TXT')
-	update = None
-	newtxt = None
+        update = None
+        newtxt = None
         for row in result:
-	    id= row[0]
-	    txt = row[4]
-	    txt=re.sub('\"','',txt)
-	    if (re.search(r'(^|\s+)%s($|\s+)' % name,txt)):
-		newtxt=re.sub(r'\s?%s\s?' % name,'',txt)
-		update=id
-		break
+            id= row[0]
+            txt = row[4]
+            txt=re.sub('\"','',txt)
+            if (re.search(r'(^|\s+)%s($|\s+)' % name,txt)):
+                newtxt=re.sub(r'\s?%s\s?' % name,'',txt)
+                update=id
+                break
 
-	result = None
-	if update is not None:
-	    if (len(newtxt) > 0):
-	    	self.update_record(update,newtxt)
-	    	print "record %s updated" % id
-	    else:
-	    	self.del_record(update);
-	    	print 'record %s deleted' % (update)
+        result = None
+        if update is not None:
+            if (len(newtxt) > 0):
+                self.update_record(update,newtxt)
+                print "record %s updated" % id
+            else:
+                self.del_record(update);
+                print 'record %s deleted' % (update)
 
     def update_soa(self,zone=ZONE):
-	query = "update records set content='%s' where name='%s' and type='SOA'" % (SOA,zone);
-	self.dbdo(query)
+        query = "update records set content='%s' where name='%s' and type='SOA'" % (SOA,zone);
+        self.dbdo(query)
 
     def rectify_zone(self,zone=ZONE):
-	call(["pdnssec", "rectify-zone", zone])
+        call(["pdnssec", "rectify-zone", zone])
 
     def cmd_add_record(self,name,rtype,content,ttl=600,prio=0):
-	"""add a record"""
-	recid=self.add_record(name=name,rtype=rtype,content=content,ttl=ttl,prio=prio)
-	print 'record %s added' % (recid)
+        """add a record"""
+        recid=self.add_record(name=name,rtype=rtype,content=content,ttl=ttl,prio=prio)
+        print 'record %s added' % (recid)
     
     def cmd_del_record(self,pid):
-	"""delete a record"""
-	self.del_record(pid)
-	print 'record %s deleted' % (pid)
+        """delete a record"""
+        self.del_record(pid)
+        print 'record %s deleted' % (pid)
 
     def cmd_list_records(self,pid=None):
-	"""list records"""
+        """list records"""
         if pid:
             print self.dbselectone('records', id=pid)
         else:
             self.dblist('records')
+    
+    def cmd_add_node(self,name,v4,v6):
+        """add records for a node"""
+        recid=self.add_record(name=name,rtype='AAAA',content=v6,ttl=600,prio=0)
+        print 'record %s added' % (recid)
+        recid=self.add_record(name=name,rtype='A',content=v4,ttl=600,prio=0)
+        print 'record %s added' % (recid)
+        print 'node %s added' % (name)
 
     def cmd_activate_node(self,name):
-	"""add the TXT entry for a node"""
-	self.add_to_txt(name);
-	print 'node %s activated' % (name)
+        """add the TXT entry for a node"""
+        self.add_to_txt(name);
+        print 'node %s activated' % (name)
     
     def cmd_deactivate_node(self,name):
-	"""remove the TXT entry for a node"""
-	self.del_from_txt(name);
-	print 'node %s deactivated' % (name)
+        """remove the TXT entry for a node"""
+        self.del_from_txt(name);
+        print 'node %s deactivated' % (name)
 
     def cmd_initdb(self):
-	"""initialize database"""
+        """initialize database"""
         self.dbdo(SCHEMA, script=True)
-	print 'database initialized'
+        print 'database initialized'
 
     def cmd_add_domain(self,zone=ZONE):
-	"""add a domain"""
-	domainid=self.add_domain(zone)
-	print 'domain %s added' % (domainid)
+        """add a domain"""
+        domainid=self.add_domain(zone)
+        print 'domain %s added' % (domainid)
     
     def cmd_list_domains(self,pid=None):
-	"""list domains"""
+        """list domains"""
         if pid:
             print self.dbselectone('domains', id=pid)
         else:
             self.dblist('domains')
     
     def cmd_del_domain(self,pid):
-	"""delete a domain"""
-	domainid=self.del_domain(pid)
-	print 'domain %s deleted' % (pid)
+        """delete a domain"""
+        domainid=self.del_domain(pid)
+        print 'domain %s deleted' % (pid)
 
     def cmd_add_soa(self,zone=ZONE):
-	"""add the SOA for a domain"""
-	recid=self.add_record(zone,'SOA',SOA,3600,0)
-	print 'record %s added' % (recid)
-	
+        """add the SOA for a domain"""
+        recid=self.add_record(zone,'SOA',SOA,3600,0)
+        print 'record %s added' % (recid)
+        
 def run(args):
     c = commands()
     c.run(args)
