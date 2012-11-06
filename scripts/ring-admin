@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-import sqlite3, sys, inspect
+import sqlite3, sys, inspect,re
 
 DB='./ring.sqlite'
+ZONE='ring.nlnog.net'
 
 SCHEMA='''
 CREATE TABLE participants
@@ -13,7 +14,7 @@ CREATE TABLE participants
     email TEXT NOT NULL,
     nocemail TEXT NOT NULL,
     companydesc TEXT,
-    username TEXT,
+    username TEXT UNIQUE,
     userid INTEGER,
     active INTEGER
 );
@@ -34,7 +35,8 @@ CREATE TABLE machines
 CREATE TABLE sshkeys
 (
     id INTEGER PRIMARY KEY,
-    sshkey TEXT,
+    keytype TEXT NOT NULL,
+    sshkey TEXT NOT NULL,
     keyid TEXT,
     participant INTEGER,
     FOREIGN KEY(participant) REFERENCES participants(id)
@@ -174,6 +176,16 @@ class commands(object):
         query = 'INSERT INTO %s (%s) VALUES(%s)' % (table, ','.join(cols), ','.join(['?']*len(vals)))
         _, rowid = self.dbdo(query, vals)
         return rowid
+    
+    def dbdelete(self, table, **kwargs):
+        cols, vals = zip(*kwargs.items())
+        query = 'DELETE FROM %s WHERE %s' % (table, ' '.join('%s=?' % col for col in cols))
+        self.dbdo(query, vals)
+    
+    def dbupdate(self, table, id, **kwargs):
+        cols, vals = zip(*kwargs.items())
+        query = 'UPDATE %s SET %s WHERE id=%s' % (table, ' '.join('%s=?' % col for col in cols), id)
+        self.dbdo(query, vals)
 
     def dblist(self, table):
         query = 'SELECT * FROM %s' % table
@@ -194,33 +206,103 @@ class commands(object):
             companydesc=companydesc,
             username=username)
         print 'participant %s added' % (partid)
-
-    def cmd_add_machine(self,
-            participantid, hostname, autnum, country, dc, geo,
-            v4=None, v6=None, state=None):
-        res = self.dbselectone('participants', id=participantid)
-        machineid = self.dbinsert('machines',
-            participant=participantid,
-            hostname=hostname,
-            autnum=autnum,
-            country=country,
-            dc=dc,
-            geo=geo,
-            v4=v4,
-            v6=v6,
-            state=state)
-        print "Added machine %s ('%s' at '%s') for participant '%s'" % (machineid, hostname, country, res['company'])
-
-    def cmd_list_participants(self, pid=None):
-        if pid:
-            print self.dbselectone('participants', id=pid)
+    
+    def cmd_update_participant(self,username,attribute,value):
+        """update participant data"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        self.dbupdate('participants',partid,**{attribute:value});
+        print 'attribute %s for participant %s updated' % (attribute,username)
+    
+    def cmd_delete_participant(self,username):
+        """delete a participant"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        self.dbdelete('machines',participant=partid);
+        print 'machines for participant %s deleted' % (username)
+        self.dbdelete('sshkeys',participant=partid);
+        print 'sshkeys for participant %s deleted' % (username)
+        self.dbdelete('participants',username=username);
+        print 'participant %s deleted' % (username)
+    
+    def cmd_list_participants(self, username=None):
+        """list participants"""
+        if username:
+            print self.dbselectone('participants', username=username)
         else:
             self.dblist('participants')
 
-    def cmd_list_machines(self):
-        self.dblist('machines')
+    def cmd_add_machine(self,
+            username, hostname, autnum, country, geo, dc=None,
+            v4=None, v6=None, state=None):
+        """add a machine"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        machineid = self.dbinsert('machines',
+            participant=partid,
+            hostname=hostname,
+            autnum=autnum,
+            country=country,
+            geo=geo,
+            dc=dc,
+            v4=v4,
+            v6=v6,
+            state=state)
+        print "Added machine %s ('%s' at '%s') for participant '%s'" % (machineid, hostname, country, participant['company'])
+    
+    def cmd_delete_machine(self,hostname):
+        """delete a machine"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        self.dbdelete('machines',hostname=hostname);
+        print 'machine %s deleted' % (hostname)
+    
+    def cmd_update_machine(self,hostname,attribute,value):
+        """update machine data"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        machine=self.dbselectone('machines', hostname=hostname)
+        machid=machine['id'];
+        self.dbupdate('machines',machid,**{attribute:value});
+        print 'attribute %s for machine %s updated' % (attribute,hostname)
+
+    def cmd_list_machines(self,username=None):
+        """list machines"""
+        if username:
+            participant=self.dbselectone('participants', username=username)
+            partid=participant['id'];
+            result=self.dbselect('machines', participant=partid)
+            for row in result:
+                print row
+        else:
+            self.dblist('machines')
+    
+    def cmd_add_sshkey(self,username,keytype,sshkey,keyid):
+        """add an sshkey"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        kid = self.dbinsert('sshkeys',
+            participant=partid,
+            keytype=keytype
+            sshkey=sshkey,
+            keyid=keyid)
+        print "Added key %s for participant '%s'" % (kid, participant['company'])
+    
+    def cmd_delete_sshkey(self,id):
+        """delete an sshkey"""
+        self.dbdelete('sshkeys',id=id);
+        print 'key deleted'
+    
+    def cmd_list_sshkeys(self,username):
+        """list sshkeys"""
+        participant=self.dbselectone('participants', username=username)
+        partid=participant['id'];
+        result=self.dbselect('sshkeys', participant=partid)
+        for row in result:
+            print row
 
     def cmd_initdb(self):
+        """initialize database"""
         self.dbdo(SCHEMA, None, script=True)
 
 def run(args):
