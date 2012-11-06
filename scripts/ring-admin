@@ -365,6 +365,84 @@ class commands(object):
         """initialize database"""
         self.dbdo(SCHEMA, None, script=True)
 
+    def cmd_generate_puppet_user(self,username):
+        """generate puppet user config"""
+        p=self.dbselectone('participants', username=username)
+        
+        print "##### BEGIN "+p['username']+" #####"
+        print ""
+        print "    @add_user { '"+p['username']+"':"
+        print "        email => '"+p['nocemail']+"',"
+        print "        company => '"+p['company']+"',"
+        print "        uid => '"+str(p['userid'])+"',"
+        print "        groups => ['ring-users'],"
+        print "    }"
+        print "    @authorized_keys { '"+p['username']+"':"
+        print "        sshkeys => ["
+        
+        keys=self.dbselect('sshkeys', participant=p['id'])
+        for k in keys:
+            print "                '"+k['keytype']+" "+k['sshkey']+" "+k['keyid']+"',"
+
+        print "            ],"
+        print "    }"
+        print ""
+        print "##### END "+p['username']+" #####"
+    
+    def cmd_generate_puppet_node(self,hostname):
+        """generate puppet node config"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        name=re.sub('.' + ZONE,'',hostname)
+        m=self.dbselectone('machines', hostname=hostname)
+        p=self.dbselectone('participants', id=m['participant'])
+
+        print "node '"+name+"' inherits ringnode {"
+        print "    $owner = \""+p['username']+"\""
+        print "    $location = \""+m['geo']+"\""
+        print "    include amp_client"
+        print "    include nagios::target::fqdn"
+        print "    include nagios_services"
+        print "    include set_local_settings"
+        print "    include users"
+        print "}"
+    
+    def cmd_generate_hostsfile(self,hostname):
+        """generate hostsfile config"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        name=re.sub('.' + ZONE,'',hostname)
+        m=self.dbselectone('machines', hostname=hostname)
+
+        print m['v6']+"  "+name+" "+m['hostname']
+        print m['v4']+"    "+name+" "+m['hostname']
+
+    def cmd_generate_javascript(self,username):
+        """generate javascript participant entry"""
+        p=self.dbselectone('participants', username=username)
+        
+        m=self.dbselect('machines', participant=p['id'])
+        hostname=''
+        autnum=''
+        try:
+            mfirst=m.next()
+            hostname=mfirst['hostname']
+            autnum=str(mfirst['autnum'])
+        except StopIteration:
+            pass
+        print "['"+p['company']+"', '"+p['username']+".png', '"+p['url']+ \
+              "', '"+hostname+"', '"+autnum+"'],"
+    
+    def cmd_generate_dns(self,hostname):
+        """generate dns config"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        m=self.dbselectone('machines', hostname=hostname)
+        print "ssh ns01.infra.ring.nlnog.net ring-pdns add node "+ \
+              m['hostname']+" "+m['v4']+" "+m['v6']
+        print "ssh ns01.infra.ring.nlnog.net ring-pdns activate node "+ \
+              m['hostname']
+
 def run(args):
     c = commands()
     c.run(args)
