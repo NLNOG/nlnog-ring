@@ -3,6 +3,7 @@ import sqlite3, sys, inspect, re, time
 
 DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
+PDNS=['ns01.ring.nlnog.net']
 
 SCHEMA='''
 CREATE TABLE participants
@@ -438,10 +439,12 @@ class commands(object):
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
         m=self.dbselectone('machines', hostname=hostname)
-        print "ssh ns01.infra.ring.nlnog.net ring-pdns add node "+ \
-              m['hostname']+" "+m['v4']+" "+m['v6']
-        print "ssh ns01.infra.ring.nlnog.net ring-pdns activate node "+ \
-              m['hostname']
+        for ns in PDNS:
+            print "ssh "+ns+" ring-pdns add node "+ \
+                  m['hostname']+" "+m['v4']+" "+m['v6']
+        for ns in PDNS:
+            print "ssh "+ns+" ring-pdns activate node "+ \
+                  m['hostname']
 
 def run(args):
     c = commands()
