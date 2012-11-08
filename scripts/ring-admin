@@ -14,10 +14,16 @@ CREATE TABLE participants
     contact TEXT NOT NULL,
     email TEXT NOT NULL,
     nocemail TEXT NOT NULL,
-    companydesc TEXT,
+    companydesc TEXT
+);
+CREATE TABLE users
+(
+    id INTEGER PRIMARY KEY,
     username TEXT UNIQUE,
     userid INTEGER,
-    active INTEGER
+    active INTEGER,
+    participant INTEGER NOT NULL,
+    FOREIGN KEY(participant) REFERENCES participants(id)
 );
 CREATE TABLE machines
 (
@@ -30,8 +36,8 @@ CREATE TABLE machines
     state TEXT,
     dc TEXT,
     geo TEXT,
-    participant INTEGER NOT NULL,
-    FOREIGN KEY(participant) REFERENCES participants(id)
+    owner INTEGER NOT NULL,
+    FOREIGN KEY(owner) REFERENCES users(id)
 );
 CREATE TABLE sshkeys
 (
@@ -39,15 +45,15 @@ CREATE TABLE sshkeys
     keytype TEXT NOT NULL,
     sshkey TEXT NOT NULL,
     keyid TEXT,
-    participant INTEGER,
-    FOREIGN KEY(participant) REFERENCES participants(id)
+    user INTEGER NOT NULL,
+    FOREIGN KEY(user) REFERENCES users(id)
 );
 CREATE TABLE premarks
 (
     id INTEGER PRIMARY KEY,
     remark TEXT,
     tstamp INTEGER,
-    participant INTEGER,
+    participant INTEGER NOT NULL,
     FOREIGN KEY(participant) REFERENCES participants(id)
 );
 CREATE TABLE mremarks
@@ -55,7 +61,7 @@ CREATE TABLE mremarks
     id INTEGER PRIMARY KEY,
     remark TEXT,
     tstamp INTEGER,
-    machine INTEGER,
+    machine INTEGER NOT NULL,
     FOREIGN KEY(machine) REFERENCES machines(id)
 );
 '''
@@ -204,47 +210,85 @@ class commands(object):
             contact=contact,
             email=email,
             nocemail=nocemail,
-            companydesc=companydesc,
-            username=username)
+            companydesc=companydesc)
         print 'participant %s added' % (partid)
+        uid=self.dbinsert('users',username=username,participant=partid)
+        print 'user %s added for participant %s' % (uid,partid)
     
     def cmd_update_participant(self,username,attribute,value):
         """update participant data"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
+        user=self.dbselectone('users', username=username)
+        partid=user['participant'];
         self.dbupdate('participants',partid,**{attribute:value});
-        print 'attribute %s for participant %s updated' % (attribute,username)
+        print 'attribute %s for participant %s updated' % (attribute,partid)
     
-    def cmd_delete_participant(self,username):
+    def cmd_delete_participant(self,pid):
         """delete a participant"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
-        result=self.dbselect('machines', participant=partid)
+        result=self.dbselect('users', participant=pid)
         for row in result:
-            sys.exit('participant %s still has machines' % username);
+            sys.exit('participant %s still has users' % pid);
 
-        self.dbdelete('sshkeys',participant=partid);
-        print 'sshkeys for participant %s deleted' % (username)
-        self.dbdelete('premarks',participant=partid);
-        print 'remarks for participant %s deleted' % (username)
-        self.dbdelete('participants',username=username);
-        print 'participant %s deleted' % (username)
+        self.dbdelete('premarks',participant=pid);
+        print 'remarks for participant %s deleted' % (pid)
+        self.dbdelete('participants',id=pid);
+        print 'participant %s deleted' % (pid)
     
     def cmd_list_participants(self, username=None):
         """list participants"""
         if username:
-            print self.dbselectone('participants', username=username)
+            user=self.dbselectone('users', username=username)
+            partid=user['participant'];
+            print self.dbselectone('participants', participant=partid)
         else:
             self.dblist('participants')
+
+    def cmd_add_user(self, pid, username, userid):
+        """add a user"""
+        uid=self.dbinsert('users',
+            username=username,
+            userid=userid,
+            participant=pid)
+        print 'user %s added' % (uid)
+    
+    def cmd_update_user(self,username,attribute,value):
+        """update user data"""
+        user=self.dbselectone('users', username=username)
+        uid=user['id'];
+        self.dbupdate('users',uid,**{attribute:value});
+        print 'attribute %s for user %s updated' % (attribute,username)
+    
+    def cmd_delete_user(self,username):
+        """delete a user"""
+        user=self.dbselectone('users', username=username)
+        uid=user['id'];
+        result=self.dbselect('machines', owner=uid)
+        for row in result:
+            sys.exit('user %s still has machines' % username);
+
+        self.dbdelete('sshkeys',user=uid);
+        print 'sshkeys for user %s deleted' % (username)
+        self.dbdelete('users',username=username);
+        print 'user %s deleted' % (username)
+    
+    def cmd_list_users(self, pid=None):
+        """list users"""
+        if pid:
+            result=self.dbselect('users', participant=pid)
+            for row in result:
+                print row
+        else:
+            self.dblist('users')
 
     def cmd_add_machine(self,
             username, hostname, autnum, country, geo, dc=None,
             v4=None, v6=None, state=None):
         """add a machine"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
+        user=self.dbselectone('users', username=username)
+        uid=user['id'];
         machineid = self.dbinsert('machines',
-            participant=partid,
+            owner=uid,
             hostname=hostname,
             autnum=autnum,
             country=country,
@@ -253,7 +297,7 @@ class commands(object):
             v4=v4,
             v6=v6,
             state=state)
-        print "Added machine %s ('%s' at '%s') for participant '%s'" % (machineid, hostname, country, participant['company'])
+        print "Added machine %s ('%s' at '%s') for user %s" % (machineid, hostname, country, username)
     
     def cmd_delete_machine(self,hostname):
         """delete a machine"""
@@ -278,24 +322,24 @@ class commands(object):
     def cmd_list_machines(self,username=None):
         """list machines"""
         if username:
-            participant=self.dbselectone('participants', username=username)
-            partid=participant['id'];
-            result=self.dbselect('machines', participant=partid)
+            user=self.dbselectone('users', username=username)
+            uid=user['id'];
+            result=self.dbselect('machines', owner=uid)
             for row in result:
                 print row
         else:
             self.dblist('machines')
     
-    def cmd_add_sshkey(self,username,keytype,sshkey,keyid):
+    def cmd_add_sshkey(self,username,keytype,sshkey,keyid=None):
         """add an sshkey"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
+        user=self.dbselectone('users', username=username)
+        uid=user['id'];
         kid = self.dbinsert('sshkeys',
-            participant=partid,
             keytype=keytype,
             sshkey=sshkey,
-            keyid=keyid)
-        print "Added key %s for participant '%s'" % (kid, participant['company'])
+            keyid=keyid,
+            user=uid)
+        print "Added key %s for user %s" % (kid, username)
     
     def cmd_delete_sshkey(self,id):
         """delete an sshkey"""
@@ -304,16 +348,17 @@ class commands(object):
     
     def cmd_list_sshkeys(self,username):
         """list sshkeys"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
-        result=self.dbselect('sshkeys', participant=partid)
+        user=self.dbselectone('users', username=username)
+        uid=user['id'];
+        result=self.dbselect('sshkeys', user=uid)
         for row in result:
             print row
     
     def cmd_add_premark(self,username,remark):
         """add a participant remark"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
+        user=self.dbselectone('users', username=username)
+        partid=user['participant'];
+        participant=self.dbselectone('participants', id=partid)
         tstamp=time.time()
         rid = self.dbinsert('premarks',
             participant=partid,
@@ -328,8 +373,8 @@ class commands(object):
     
     def cmd_list_premarks(self,username):
         """list participant remarks"""
-        participant=self.dbselectone('participants', username=username)
-        partid=participant['id'];
+        user=self.dbselectone('users', username=username)
+        partid=user['participant'];
         result=self.dbselect('premarks', participant=partid)
         for row in result:
             print row
@@ -368,27 +413,34 @@ class commands(object):
 
     def cmd_generate_puppet_user(self,username):
         """generate puppet user config"""
-        p=self.dbselectone('participants', username=username)
+        u=self.dbselectone('users', username=username)
+        partid=u['participant']
+        p=self.dbselectone('participants', id=partid)
         
-        print "##### BEGIN "+p['username']+" #####"
+        print "##### BEGIN "+u['username']+" #####"
         print ""
-        print "    @add_user { '"+p['username']+"':"
+        print "    @add_user { '"+u['username']+"':"
         print "        email => '"+p['nocemail']+"',"
         print "        company => '"+p['company']+"',"
-        print "        uid => '"+str(p['userid'])+"',"
+        print "        uid => '"+str(u['userid'])+"',"
         print "        groups => ['ring-users'],"
         print "    }"
-        print "    @authorized_keys { '"+p['username']+"':"
+        print "    @authorized_keys { '"+u['username']+"':"
         print "        sshkeys => ["
         
-        keys=self.dbselect('sshkeys', participant=p['id'])
+        keys=self.dbselect('sshkeys', user=p['id'])
         for k in keys:
-            print "                '"+k['keytype']+" "+k['sshkey']+" "+k['keyid']+"',"
+            if k['keyid']:
+                print "                '"+\
+                      k['keytype']+" "+k['sshkey']+" "+k['keyid']+"',"
+            else:
+                print "                '"+\
+                      k['keytype']+" "+k['sshkey']+"',"
 
         print "            ],"
         print "    }"
         print ""
-        print "##### END "+p['username']+" #####"
+        print "##### END "+u['username']+" #####"
     
     def cmd_generate_puppet_node(self,hostname):
         """generate puppet node config"""
@@ -396,10 +448,10 @@ class commands(object):
             hostname=hostname + "." + ZONE
         name=re.sub('.' + ZONE,'',hostname)
         m=self.dbselectone('machines', hostname=hostname)
-        p=self.dbselectone('participants', id=m['participant'])
+        u=self.dbselectone('users', id=m['owner'])
 
         print "node '"+name+"' inherits ringnode {"
-        print "    $owner = \""+p['username']+"\""
+        print "    $owner = \""+u['username']+"\""
         print "    $location = \""+m['geo']+"\""
         print "    include amp_client"
         print "    include nagios::target::fqdn"
@@ -420,9 +472,11 @@ class commands(object):
 
     def cmd_generate_javascript(self,username):
         """generate javascript participant entry"""
-        p=self.dbselectone('participants', username=username)
+        u=self.dbselectone('users', username=username)
+        partid=u['participant']
+        p=self.dbselectone('participants', id=partid)
         
-        m=self.dbselect('machines', participant=p['id'])
+        m=self.dbselect('machines', owner=u['id'])
         hostname=''
         autnum=''
         try:
@@ -431,7 +485,7 @@ class commands(object):
             autnum=str(mfirst['autnum'])
         except StopIteration:
             pass
-        print "['"+p['company']+"', '"+p['username']+".png', '"+p['url']+ \
+        print "['"+p['company']+"', '"+u['username']+".png', '"+p['url']+\
               "', '"+hostname+"', '"+autnum+"'],"
     
     def cmd_generate_dns(self,hostname):
