@@ -180,6 +180,11 @@ class commands(object):
         
     def dbinsert(self, table, **kwargs):
         cols, vals = zip(*kwargs.items())
+        query = 'INSERT INTO %s (%s) VALUES(%s)' % (table, ','.join(cols), ','.join(vals))
+        _, rowid = self.dbdo(query, vals)
+        return rowid
+    
+    def dbinsertlist(self, table, cols, vals):
         query = 'INSERT INTO %s (%s) VALUES(%s)' % (table, ','.join(cols), ','.join(['?']*len(vals)))
         _, rowid = self.dbdo(query, vals)
         return rowid
@@ -330,21 +335,34 @@ class commands(object):
         else:
             self.dblist('machines')
     
-    def cmd_add_sshkey(self,username,keytype,sshkey,keyid=None):
-        """add an sshkey"""
+    def cmd_add_sshkeys(self,username,filename=None):
+        """add one or more sshkeys"""
         user=self.dbselectone('users', username=username)
         uid=user['id'];
-        kid = self.dbinsert('sshkeys',
-            keytype=keytype,
-            sshkey=sshkey,
-            keyid=keyid,
-            user=uid)
-        print "Added key %s for user %s" % (kid, username)
-    
+
+        file = None
+        if filename:
+            file = open(filename,"r")
+        else:
+            file = sys.stdin
+        cols = ['keytype','sshkey','keyid','user']
+        for line in file:
+            if (re.search(r'^#',line)):
+                continue
+            vals = line.split()
+            if (len(vals) < 2 or len(vals) > 3):
+                continue
+            if len(vals) == 2:
+                vals.append(None)
+            vals.append(uid)
+            kid=self.dbinsertlist('sshkeys',cols,vals)
+            print "Added key %s for user %s" % (kid, username)
+        file.close()
+
     def cmd_delete_sshkey(self,id):
         """delete an sshkey"""
         self.dbdelete('sshkeys',id=id);
-        print 'key deleted'
+        print 'key %s deleted' % (id)
     
     def cmd_list_sshkeys(self,username):
         """list sshkeys"""
