@@ -250,7 +250,7 @@ class commands(object):
         
     def dbinsert(self, table, **kwargs):
         cols, vals = zip(*kwargs.items())
-        query = 'INSERT INTO %s (%s) VALUES(%s)' % (table, ','.join(cols), ','.join(vals))
+        query = 'INSERT INTO %s (%s) VALUES(%s)' % (table, ','.join(cols), ','.join(['?']*len(vals)))
         _, rowid = self.dbdo(query, vals)
         return rowid
    
