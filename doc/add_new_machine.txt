@@ -8,30 +8,25 @@
 # that we do not support 32 bit machines in the ring
 lscpu
 
-
 # DNS:
 
 # update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node (currently via Job)
 
+# Database (on the master):
+
+ring-admin add machine $username $hostname $asnumber $country $datacenter $v4address $v6address
 
 # Puppet repo:
 
-# edit the following in the puppet repo and push it to master01
+# generate config-snippets for the different puppet configs
 # /etc/puppet/manifests/nodes.pp
-#  - nodename
-#  - owner username
-#  - gps coordinates
+ring-admin generate puppet node $hostname
+
 # /etc/puppet/files/etc/hosts
-#  - nodename
-#  - ipv4 address
-#  - ipv6 address
+ring-admin generate hostsfile $hostname
+
 # /etc/puppet/manifests/ring-users.pp
-#  - owner username
-#  - noc email
-#  - company name
-#  - uid (use next free)
-#  - usernames and key blobs of sshkeys
-#
+ring-admin generate puppet user $username
 
 # Setup AMP measuring
 cd modules/amp/tools/
@@ -58,19 +53,8 @@ curl https://ring.nlnog.net/ring.key | apt-key add -
 curl https://ring.nlnog.net/sources.list > /etc/apt/sources.list
 apt-get update; apt-get -y dist-upgrade; apt-get -y install puppet puppet-common
 
-# run puppet and make sure you sign the cert on the master
+# run puppet until everything is up2date
 puppetd --test
-
-
-# On the master:
-
-puppetca --list # to see if it's waiting
-puppetca --sign --all # to sign all waiting
-
-
-# Back to the host:
-
-# run puppet to see if it works (try it twice, to make sure)
 puppetd --test
 puppetd --test
 
