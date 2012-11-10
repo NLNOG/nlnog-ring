@@ -517,7 +517,7 @@ class commands(object):
         print "    @authorized_keys { '"+u['username']+"':"
         print "        sshkeys => ["
         
-        keys=self.dbselect('sshkeys', user=p['id'])
+        keys=self.dbselect('sshkeys', user=u['id'])
         for k in keys:
             if k['keyid']:
                 print "                '"+\
