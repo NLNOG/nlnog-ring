@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+import re, sys
+
+FILE='/var/www/ring.nlnog.net/HTML/images/ring-logos/participants.js'
+ZONE='ring.nlnog.net'
+
+file = open(FILE,"r");
+
+p = {};
+k = [];
+for line in file:
+    line=line.rstrip()
+    if re.search(r'^\[',line):
+        #line=re.sub(r'\'','',line);
+        line=re.sub(r'\[','',line);
+        line=re.sub(r'\]','',line);
+        line=re.sub(r' ','',line);
+        line=re.sub(r'\',\s*$','',line);
+        cols=re.split(r'\'\s*,\s*\'',line)
+        username=re.sub(r'.png','',cols[1])
+        print "../ring-admin update participant"+\
+              " "+username+" url "+cols[2]
+        print "../ring-admin update machine"+\
+              " "+cols[3]+" autnum "+cols[4]
+
+    if re.search(r'^\];',line):
+        sys.exit
+
+
+
+#Indit Hosting AB, indit.png, http://www.indithosting.se/, indit01.ring.nlnog.net, 30893,

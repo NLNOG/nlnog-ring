@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+import re,simplejson,urllib,sys
+
+FILE='../../../ring-puppet/manifests/nodes.pp'
+ZONE='ring.nlnog.net'
+
+file = open(FILE,"r");
+
+p = {};
+k = [];
+for line in file:
+    line=line.rstrip()
+    if re.search(r'inherits ringnode',line):
+        p.clear()
+        k = [];
+        hostname = line
+        hostname = re.sub('node\s+\'','',hostname)
+        hostname = re.sub('\'.+','',hostname)
+        if re.search(r'^staging',hostname):
+            continue
+        p['hostname'] = hostname+'.'+ZONE
+
+    if re.search(r'owner =',line):
+        owner = line
+        owner = re.sub('.*owner\s+=\s+"','',owner)
+        owner = re.sub('".*','',owner)
+        p['owner'] = owner
+    
+    if re.search(r'location =',line):
+        geo = line
+        geo = re.sub('.*location\s+=\s+"','',geo)
+        geo = re.sub('".*','',geo)
+        p['geo'] = geo
+    
+    if re.search(r'^}\s*$',line):
+        if not p.has_key('hostname'):
+            continue
+        print "../ring-admin add machine"+\
+              " "+p['owner']+\
+              " "+p['hostname']+\
+              " 0"+\
+              " \"\""+\
+              " "+p['geo']
+        sys.exit

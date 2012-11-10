@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+import re
+
+FILE='../../../ring-puppet/files/etc/hosts'
+ZONE='ring.nlnog.net'
+
+file = open(FILE,"r");
+
+for line in file:
+    line=line.rstrip()
+    if re.search(r'ring.nlnog.net',line):
+        if re.search(r'master',line):
+            continue
+        if re.search(r'staging',line):
+            continue
+        if re.search(r'worker',line):
+            continue
+        if re.search(r'infra',line):
+            continue
+        if re.search(r'container',line):
+            continue
+
+        words = line.split()
+        if re.search(r':',words[0]):
+            print "../ring-admin update machine"+\
+                  " "+words[2]+" v6 "+words[0]
+        else:
+            print "../ring-admin update machine"+\
+                  " "+words[2]+" v4 "+words[0]
