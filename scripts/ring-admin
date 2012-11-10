@@ -2,7 +2,7 @@
 import sqlite3, sys, inspect, re, time
 from string import Template
 
-DB='./ring.sqlite'
+DB='/var/ring/ring.sqlite'
 ZONE='ring.nlnog.net'
 PDNS=['ns01.ring.nlnog.net']
 
@@ -15,7 +15,8 @@ CREATE TABLE participants
     contact TEXT NOT NULL,
     email TEXT NOT NULL,
     nocemail TEXT NOT NULL,
-    companydesc TEXT
+    companydesc TEXT,
+    public INTEGER
 );
 CREATE TABLE users
 (
