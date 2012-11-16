@@ -6,12 +6,12 @@
 # If not, ask for login details
 
 # Add the participant to the database
-ring-admin add participant $company "$contact" $email $nocemail $username "$companydescription $url
+ring-admin add participant $company "$contact" $email $nocemail $username "$companydescription" $url
 
 # Add SSH key
-echo "ssh-$type $key $keyid" | ring-admin add sshkey $user
+echo "ssh-$type $key $keyid" | ring-admin add sshkeys $user
 # or import multiple keys from a file
-ring-admin add sshkey $user $filename
+ring-admin add sshkeys $user $filename
 
 # Choose a userid for the participant's user and add it
 ring-admin update user $username userid $userid
