@@ -778,4 +778,4 @@ def run(args):
 
 if __name__ == "__main__":
     c = commands()
-    sys.exit(c.run([s.decode('utf-8') for s in sys.argv[1:]]))
+    sys.exit(c.run([s.decode(sys.stdin.encoding) for s in sys.argv[1:]]))
