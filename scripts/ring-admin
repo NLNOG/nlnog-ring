@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sqlite3, sys, inspect, re, time, string
+import sqlite3, sys, inspect, re, time, string, pycountry
 from string import Template
 
 #DB='/var/ring/ring.sqlite'
@@ -295,8 +295,23 @@ class commands(object):
         machine=self.dbselectone('machines', hostname=hostname)
         mid = None
         if machine:
-            mid=user['id'];
+            mid=machine['id'];
         return mid
+
+    def countryname(self, country, state):
+        cname=''
+        try:
+            c=pycountry.countries.get(alpha2=country)
+            cname=c.name
+        except KeyError:
+            cname='Unknown'
+        if state:
+            try:
+                s=pycountry.subdivisions.get(code=country+'-'+state)
+                cname=s.name+', '+cname
+            except KeyError:
+                cname='Unknown, '+cname
+        return cname
 
     def cmd_add_participant(self,
             company, contact, email, nocemail, username,
@@ -680,10 +695,11 @@ class commands(object):
             country=mfirst['country']
         except StopIteration:
             pass
+        country=self.countryname(country,state)
         text=Template(WEBSITETEXT)
         print text.substitute(company=p['company'],companydesc=p['companydesc'],
                         hostname=hostname,autnum=autnum,
-                        dc=dc,state=state,country=country)
+                        dc=dc,country=country)
     
     def cmd_generate_welcomemail(self,username):
         """generate text for welcome mail"""
@@ -733,6 +749,7 @@ class commands(object):
             country=mfirst['country']
         except StopIteration:
             pass
+        country=self.countryname(country,state)
         text=Template(ANNOUNCEMAIL)
         print text.substitute(company=p['company'],companydesc=p['companydesc'],
                         hostname=hostname,autnum=autnum,
