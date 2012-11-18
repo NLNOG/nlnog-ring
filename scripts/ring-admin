@@ -18,6 +18,7 @@ CREATE TABLE participants
     nocemail TEXT NOT NULL,
     companydesc TEXT,
     public INTEGER
+    tstamp INTEGER,
 );
 CREATE TABLE users
 (
@@ -40,6 +41,7 @@ CREATE TABLE machines
     dc TEXT,
     geo TEXT,
     owner INTEGER NOT NULL,
+    tstamp INTEGER,
     FOREIGN KEY(owner) REFERENCES users(id)
 );
 CREATE TABLE sshkeys
@@ -317,13 +319,15 @@ class commands(object):
             company, contact, email, nocemail, username,
             companydesc=None, url=None):
         """add a participant"""
+        tstamp=time.time()
         partid=self.dbinsert('participants',
             company=company,
             url=url,
             contact=contact,
             email=email,
             nocemail=nocemail,
-            companydesc=companydesc)
+            companydesc=companydesc,
+            tstamp=tstamp)
         print 'participant %s added' % (partid)
         uid=self.dbinsert('users',username=username,participant=partid)
         print 'user %s added for participant %s' % (uid,partid)
@@ -406,6 +410,7 @@ class commands(object):
         uid=self.username2uid(username)
         if not uid:
             sys.exit('user %s not found' % username)
+        tstamp=time.time()
         machineid = self.dbinsert('machines',
             owner=uid,
             hostname=hostname,
@@ -415,7 +420,8 @@ class commands(object):
             dc=dc,
             v4=v4,
             v6=v6,
-            state=state)
+            state=state,
+            tstamp=tstamp)
         print "Added machine %s ('%s' at '%s') for user %s" % (machineid, hostname, country, username)
     
     def cmd_delete_machine(self,hostname):
