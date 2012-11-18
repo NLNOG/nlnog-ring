@@ -17,8 +17,8 @@ CREATE TABLE participants
     email TEXT NOT NULL,
     nocemail TEXT NOT NULL,
     companydesc TEXT,
-    public INTEGER
-    tstamp INTEGER,
+    public INTEGER,
+    tstamp INTEGER
 );
 CREATE TABLE users
 (
