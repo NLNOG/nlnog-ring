@@ -491,6 +491,15 @@ class commands(object):
             kid=self.dbinsertlist('sshkeys',cols,insert)
             print "Added key %s for user %s" % (kid, username)
         file.close()
+    
+    def cmd_replace_sshkeys(self,username,filename=None):
+        """replace sshkeys"""
+        uid=self.username2uid(username)
+        if not uid:
+            sys.exit('user %s not found' % username)
+        self.dbdelete('sshkeys',user=uid);
+        print 'sshkeys for user %s deleted' % (username)
+        self.cmd_add_sshkeys(username,filename)
 
     def cmd_delete_sshkey(self,id):
         """delete an sshkey"""
