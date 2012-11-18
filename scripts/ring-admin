@@ -277,6 +277,27 @@ class commands(object):
         for row in result:
             print row
 
+    def username2uid(self, username):
+        user=self.dbselectone('users', username=username)
+        uid = None
+        if user:
+            uid=user['id'];
+        return uid
+    
+    def username2pid(self, username):
+        user=self.dbselectone('users', username=username)
+        pid = None
+        if user:
+            pid=user['participant'];
+        return pid
+    
+    def hostname2mid(self, hostname):
+        machine=self.dbselectone('machines', hostname=hostname)
+        mid = None
+        if machine:
+            mid=user['id'];
+        return mid
+
     def cmd_add_participant(self,
             company, contact, email, nocemail, username,
             companydesc=None, url=None):
@@ -294,8 +315,9 @@ class commands(object):
     
     def cmd_update_participant(self,username,attribute,value):
         """update participant data"""
-        user=self.dbselectone('users', username=username)
-        partid=user['participant'];
+        partid=self.username2pid(username)
+        if not partid:
+           sys.exit('user %s not found' % username) 
         self.dbupdate('participants',partid,**{attribute:value});
         print 'attribute %s for participant %s updated' % (attribute,partid)
     
@@ -313,14 +335,18 @@ class commands(object):
     def cmd_list_participants(self, username=None):
         """list participants"""
         if username:
-            user=self.dbselectone('users', username=username)
-            partid=user['participant'];
+            partid=self.username2pid(username)
+            if not partid:
+                sys.exit('user %s not found' % username) 
             print self.dbselectone('participants', participant=partid)
         else:
             self.dblist('participants')
 
     def cmd_add_user(self, pid, username, userid):
         """add a user"""
+        participant=self.dbselectone('participants', id=pid)
+        if not participant:
+            sys.exit('participant %s not found' % pid)
         uid=self.dbinsert('users',
             username=username,
             userid=userid,
@@ -329,15 +355,17 @@ class commands(object):
     
     def cmd_update_user(self,username,attribute,value):
         """update user data"""
-        user=self.dbselectone('users', username=username)
-        uid=user['id'];
+        uid=self.username2uid(username)
+        if not uid:
+           sys.exit('user %s not found' % username) 
         self.dbupdate('users',uid,**{attribute:value});
         print 'attribute %s for user %s updated' % (attribute,username)
     
     def cmd_delete_user(self,username):
         """delete a user"""
-        user=self.dbselectone('users', username=username)
-        uid=user['id'];
+        uid=self.username2uid(username)
+        if not uid:
+           sys.exit('user %s not found' % username) 
         result=self.dbselect('machines', owner=uid)
         for row in result:
             sys.exit('user %s still has machines' % username);
@@ -360,10 +388,9 @@ class commands(object):
             username, hostname, autnum, country, geo, dc=None,
             v4=None, v6=None, state=None):
         """add a machine"""
-        if not (re.match(r'.*%s$' % ZONE,hostname)):
-            hostname=hostname + "." + ZONE
-        user=self.dbselectone('users', username=username)
-        uid=user['id'];
+        uid=self.username2uid(username)
+        if not uid:
+            sys.exit('user %s not found' % username)
         machineid = self.dbinsert('machines',
             owner=uid,
             hostname=hostname,
@@ -380,8 +407,9 @@ class commands(object):
         """delete a machine"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
-        machine=self.dbselectone('machines', hostname=hostname)
-        machid=machine['id'];
+        machid=self.hostname2mid(hostname)
+        if not machid:
+            sys.exit('machine %s not found' % hostname)
         self.dbdelete('mremarks',machine=machid);
         print 'remarks for machine %s deleted' % (hostname)
         self.dbdelete('machines',hostname=hostname);
@@ -391,16 +419,18 @@ class commands(object):
         """update machine data"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
-        machine=self.dbselectone('machines', hostname=hostname)
-        machid=machine['id'];
+        machid=self.hostname2mid(hostname)
+        if not machid:
+            sys.exit('machine %s not found' % hostname)
         self.dbupdate('machines',machid,**{attribute:value});
         print 'attribute %s for machine %s updated' % (attribute,hostname)
 
     def cmd_list_machines(self,username=None):
         """list machines"""
         if username:
-            user=self.dbselectone('users', username=username)
-            uid=user['id'];
+            uid=self.username2uid(username)
+            if not uid:
+                sys.exit('user %s not found' % username)
             result=self.dbselect('machines', owner=uid)
             for row in result:
                 print row
@@ -409,8 +439,9 @@ class commands(object):
     
     def cmd_add_sshkeys(self,username,filename=None):
         """add one or more sshkeys"""
-        user=self.dbselectone('users', username=username)
-        uid=user['id'];
+        uid=self.username2uid(username)
+        if not uid:
+            sys.exit('user %s not found' % username)
 
         file = None
         if filename:
@@ -447,17 +478,21 @@ class commands(object):
     
     def cmd_list_sshkeys(self,username):
         """list sshkeys"""
-        user=self.dbselectone('users', username=username)
-        uid=user['id'];
+        uid=self.username2uid(username)
+        if not uid:
+            sys.exit('user %s not found' % username)
         result=self.dbselect('sshkeys', user=uid)
         for row in result:
             print row
     
     def cmd_add_premark(self,username,remark):
         """add a participant remark"""
-        user=self.dbselectone('users', username=username)
-        partid=user['participant'];
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         participant=self.dbselectone('participants', id=partid)
+        if not participant:
+            sys.exit('participant %s not found' % partid)
         tstamp=time.time()
         rid = self.dbinsert('premarks',
             participant=partid,
@@ -472,8 +507,9 @@ class commands(object):
     
     def cmd_list_premarks(self,username):
         """list participant remarks"""
-        user=self.dbselectone('users', username=username)
-        partid=user['participant'];
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         result=self.dbselect('premarks', participant=partid)
         for row in result:
             print row
@@ -482,8 +518,9 @@ class commands(object):
         """add a machine remark"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
-        machine=self.dbselectone('machines', hostname=hostname)
-        machid=machine['id'];
+        machid=self.hostname2mid(hostname)
+        if not machid:
+            sys.exit('machine %s not found' % hostname)
         tstamp=time.time()
         rid = self.dbinsert('mremarks',
             machine=machid,
@@ -500,8 +537,9 @@ class commands(object):
         """list machine remarks"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
-        machine=self.dbselectone('machines', hostname=hostname)
-        machid=machine['id'];
+        machid=self.hostname2mid(hostname)
+        if not machid:
+            sys.exit('machine %s not found' % hostname)
         result=self.dbselect('mremarks', machine=machid)
         for row in result:
             print row
@@ -512,10 +550,13 @@ class commands(object):
 
     def cmd_generate_puppet_user(self,username):
         """generate puppet user config"""
-        u=self.dbselectone('users', username=username)
-        partid=u['participant']
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
-        
+        if not p:
+            sys.exit('participant %s not found' % partid)
+
         print "##### BEGIN "+u['username']+" #####"
         print ""
         print "    @add_user { '"+u['username']+"':"
@@ -547,7 +588,11 @@ class commands(object):
             hostname=hostname + "." + ZONE
         name=re.sub('.' + ZONE,'',hostname)
         m=self.dbselectone('machines', hostname=hostname)
+        if not m:
+            sys.exit('machine %s not found' % hostname)
         u=self.dbselectone('users', id=m['owner'])
+        if not u:
+            sys.exit('user %s not found' % m['owner'])
 
         print "node '"+name+"' inherits ringnode {"
         print "    $owner = \""+u['username']+"\""
@@ -565,17 +610,25 @@ class commands(object):
             hostname=hostname + "." + ZONE
         name=re.sub('.' + ZONE,'',hostname)
         m=self.dbselectone('machines', hostname=hostname)
+        if not m:
+            sys.exit('machine %s not found' % hostname)
 
         print m['v6']+"  "+name+" "+m['hostname']
-        print m['v4']+"    "+name+" "+m['hostname']
+        if m['v4']:
+            print m['v4']+"    "+name+" "+m['hostname']
 
     def cmd_generate_javascript(self,username):
         """generate javascript participant entry"""
-        u=self.dbselectone('users', username=username)
-        partid=u['participant']
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
-        
+        if not p:
+            sys.exit('participant %s not found' % partid)
+        u=self.dbselectone('users', participant=partid)
         m=self.dbselect('machines', owner=u['id'])
+        if not m:
+            sys.exit('no machines found for %s' % username)
         hostname=''
         autnum=''
         try:
@@ -584,14 +637,16 @@ class commands(object):
             autnum=str(mfirst['autnum'])
         except StopIteration:
             pass
-        print "['"+p['company']+"', '"+u['username']+".png', '"+p['url']+\
-              "', '"+hostname+"', '"+autnum+"'],"
+        print "['"+str(p['company'])+"', '"+str(u['username'])+".png', '"+\
+              str(p['url'])+"', '"+hostname+"', '"+autnum+"'],"
     
     def cmd_generate_dns(self,hostname):
         """generate dns config"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
         m=self.dbselectone('machines', hostname=hostname)
+        if not m:
+            sys.exit('machine %s not found' % hostname)
         for ns in PDNS:
             print "ssh "+ns+" ring-pdns add node "+ \
                   m['hostname']+" "+m['v4']+" "+m['v6']
@@ -601,10 +656,16 @@ class commands(object):
     
     def cmd_generate_webpost(self,username):
         """generate text for website post"""
-        u=self.dbselectone('users', username=username)
-        partid=u['participant']
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
+        if not p:
+            sys.exit('participant %s not found' % partid)
+        u=self.dbselectone('users', participant=partid)
         m=self.dbselect('machines', owner=u['id'])
+        if not m:
+            sys.exit('no machines found for %s' % username)
         hostname=''
         autnum=''
         dc=''
@@ -626,10 +687,16 @@ class commands(object):
     
     def cmd_generate_welcomemail(self,username):
         """generate text for welcome mail"""
-        u=self.dbselectone('users', username=username)
-        partid=u['participant']
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
+        if not p:
+            sys.exit('participant %s not found' % partid)
+        u=self.dbselectone('users', participant=partid)
         m=self.dbselect('machines', owner=u['id'])
+        if not m:
+            sys.exit('no machines found for %s' % username)
         hostname=''
         try:
             mfirst=m.next()
@@ -642,10 +709,16 @@ class commands(object):
     
     def cmd_generate_announcemail(self,username):
         """generate text for announcement mail"""
-        u=self.dbselectone('users', username=username)
-        partid=u['participant']
+        partid=self.username2pid(username)
+        if not partid:
+            sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
+        if not p:
+            sys.exit('participant %s not found' % partid)
+        u=self.dbselectone('users', participant=partid)
         m=self.dbselect('machines', owner=u['id'])
+        if not m:
+            sys.exit('no machines found for %s' % username)
         hostname=''
         autnum=''
         dc=''
