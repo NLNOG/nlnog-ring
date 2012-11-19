@@ -669,7 +669,7 @@ class commands(object):
             autnum=str(mfirst['autnum'])
         except StopIteration:
             pass
-        print "['"+str(p['company'])+"', '"+str(u['username'])+".png', '"+\
+        print "['"+p['company']+"', '"+str(u['username'])+".png', '"+\
               str(p['url'])+"', '"+hostname+"', '"+autnum+"'],"
     
     def cmd_generate_dns(self,hostname):
