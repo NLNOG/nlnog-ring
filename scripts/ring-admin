@@ -582,6 +582,7 @@ class commands(object):
 
     def cmd_generate_puppet_user(self,username):
         """generate puppet user config"""
+        uid=self.username2pid(username)
         partid=self.username2pid(username)
         if not partid:
             sys.exit('user %s not found' % username)
@@ -589,18 +590,18 @@ class commands(object):
         if not p:
             sys.exit('participant %s not found' % partid)
 
-        print "##### BEGIN "+u['username']+" #####"
+        print "##### BEGIN "+username+" #####"
         print ""
-        print "    @add_user { '"+u['username']+"':"
+        print "    @add_user { '"+username+"':"
         print "        email => '"+p['nocemail']+"',"
         print "        company => '"+p['company']+"',"
-        print "        uid => '"+str(u['userid'])+"',"
+        print "        uid => "+uid+","
         print "        groups => ['ring-users'],"
         print "    }"
-        print "    @authorized_keys { '"+u['username']+"':"
+        print "    @authorized_keys { '"+username+"':"
         print "        sshkeys => ["
         
-        keys=self.dbselect('sshkeys', user=u['id'])
+        keys=self.dbselect('sshkeys', user=uid)
         for k in keys:
             if k['keyid']:
                 print "                '"+\
@@ -612,7 +613,7 @@ class commands(object):
         print "            ],"
         print "    }"
         print ""
-        print "##### END "+u['username']+" #####"
+        print "##### END "+username+" #####"
     
     def cmd_generate_puppet_node(self,hostname):
         """generate puppet node config"""
