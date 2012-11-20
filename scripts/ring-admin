@@ -595,7 +595,7 @@ class commands(object):
         print "    @add_user { '"+username+"':"
         print "        email => '"+p['nocemail']+"',"
         print "        company => '"+p['company']+"',"
-        print "        uid => "+uid+","
+        print "        uid => "+str(uid)+","
         print "        groups => ['ring-users'],"
         print "    }"
         print "    @authorized_keys { '"+username+"':"
