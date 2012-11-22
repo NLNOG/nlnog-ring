@@ -2,8 +2,8 @@
 import sqlite3, sys, inspect, re, time, string, pycountry, os
 from string import Template
 
-#DB='/var/ring/ring.sqlite'
-DB='./ring.sqlite'
+DB='/var/ring/ring.sqlite'
+#DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
 PDNS=['ns01.ring.nlnog.net']
 
@@ -589,6 +589,7 @@ class commands(object):
         if not partid:
             sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
+        u=self.dbselectone('users', id=uid)
         if not p:
             sys.exit('participant %s not found' % partid)
 
@@ -597,7 +598,7 @@ class commands(object):
         print "    @add_user { '"+username+"':"
         print "        email => '"+p['nocemail']+"',"
         print "        company => '"+p['company']+"',"
-        print "        uid => "+str(uid)+","
+        print "        uid => "+str(u['userid'])+","
         print "        groups => ['ring-users'],"
         print "    }"
         print "    @authorized_keys { '"+username+"':"
