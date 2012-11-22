@@ -584,7 +584,7 @@ class commands(object):
 
     def cmd_generate_puppet_user(self,username):
         """generate puppet user config"""
-        uid=self.username2pid(username)
+        uid=self.username2uid(username)
         partid=self.username2pid(username)
         if not partid:
             sys.exit('user %s not found' % username)
