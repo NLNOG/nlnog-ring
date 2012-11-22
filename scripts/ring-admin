@@ -409,6 +409,8 @@ class commands(object):
             username, hostname, autnum, country, geo, dc=None,
             v4=None, v6=None, state=None):
         """add a machine"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
         uid=self.username2uid(username)
         if not uid:
             sys.exit('user %s not found' % username)
