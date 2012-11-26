@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import sqlite3, sys, inspect, re, time, string, pycountry
+import sqlite3, sys, inspect, re, time, string, pycountry, os
 from string import Template
 
-#DB='/var/ring/ring.sqlite'
-DB='./ring.sqlite'
+DB='/var/ring/ring.sqlite'
+#DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
 PDNS=['ns01.ring.nlnog.net']
 
@@ -409,6 +409,8 @@ class commands(object):
             username, hostname, autnum, country, geo, dc=None,
             v4=None, v6=None, state=None):
         """add a machine"""
+        if not (re.match(r'.*%s$' % ZONE,hostname)):
+            hostname=hostname + "." + ZONE
         uid=self.username2uid(username)
         if not uid:
             sys.exit('user %s not found' % username)
@@ -582,25 +584,27 @@ class commands(object):
 
     def cmd_generate_puppet_user(self,username):
         """generate puppet user config"""
+        uid=self.username2uid(username)
         partid=self.username2pid(username)
         if not partid:
             sys.exit('user %s not found' % username)
         p=self.dbselectone('participants', id=partid)
+        u=self.dbselectone('users', id=uid)
         if not p:
             sys.exit('participant %s not found' % partid)
 
-        print "##### BEGIN "+u['username']+" #####"
+        print "##### BEGIN "+username+" #####"
         print ""
-        print "    @add_user { '"+u['username']+"':"
+        print "    @add_user { '"+username+"':"
         print "        email => '"+p['nocemail']+"',"
         print "        company => '"+p['company']+"',"
-        print "        uid => '"+str(u['userid'])+"',"
+        print "        uid => "+str(u['userid'])+","
         print "        groups => ['ring-users'],"
         print "    }"
-        print "    @authorized_keys { '"+u['username']+"':"
+        print "    @authorized_keys { '"+username+"':"
         print "        sshkeys => ["
         
-        keys=self.dbselect('sshkeys', user=u['id'])
+        keys=self.dbselect('sshkeys', user=uid)
         for k in keys:
             if k['keyid']:
                 print "                '"+\
@@ -612,7 +616,7 @@ class commands(object):
         print "            ],"
         print "    }"
         print ""
-        print "##### END "+u['username']+" #####"
+        print "##### END "+username+" #####"
     
     def cmd_generate_puppet_node(self,hostname):
         """generate puppet node config"""
@@ -669,7 +673,7 @@ class commands(object):
             autnum=str(mfirst['autnum'])
         except StopIteration:
             pass
-        print "['"+str(p['company'])+"', '"+str(u['username'])+".png', '"+\
+        print "['"+p['company']+"', '"+str(u['username'])+".png', '"+\
               str(p['url'])+"', '"+hostname+"', '"+autnum+"'],"
     
     def cmd_generate_dns(self,hostname):
@@ -778,4 +782,4 @@ def run(args):
 
 if __name__ == "__main__":
     c = commands()
-    sys.exit(c.run([s.decode(sys.stdin.encoding) for s in sys.argv[1:]]))
+    sys.exit(c.run([s.decode(sys.stdout.encoding or os.environ.get('LC_CTYPE','.').split('.',1)[1] or 'utf-8') for s in sys.argv[1:]]))
