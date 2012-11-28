@@ -33,7 +33,7 @@ cd modules/amp/tools/
 ./create_files
 
 git commit -am '<your message>'
-git push && ssh master01.ring.nlnog.net sudo ring-puppet-repo-sync
+git push && ssh master01.infra.ring.nlnog.net sudo ring-puppet-repo-sync
 
 
 # On the host:
@@ -43,8 +43,8 @@ echo "$org01.ring.nlnog.net" > /etc/hostname
 hostname -F /etc/hostname
 
 # add /etc/hosts 
-echo "212.19.220.59   master01 master01.ring.nlnog.net puppet" >> /etc/hosts
-echo "2001:6e0:100:4001::3 master01 master01.ring.nlnog.net puppet" >> /etc/hosts
+echo "78.152.42.69   master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
+echo "2a02:d28:666::69 master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
 
 # install puppet
 
@@ -54,9 +54,7 @@ curl https://ring.nlnog.net/sources.list > /etc/apt/sources.list
 apt-get update; apt-get -y dist-upgrade; apt-get -y install puppet puppet-common
 
 # run puppet until everything is up2date
-puppetd --test
-puppetd --test
-puppetd --test
+puppetd --test; puppetd --test; puppetd --test
 
 # logout; then log in as a ring-admin user
 # if ring-admin users exist (for puppet has behaved well) you can delete 
@@ -73,5 +71,53 @@ reboot
 
 # Add the node to the nodes TXT record so it can be used by ring-users (currently via Job)
 # Add the node to the google map (currently via Teun)
+
+# More AMP stuff
+
+stap 1) 
+=======
+
+Alice:~ job$ cd source/ring/ring-puppet/
+Alice:ring-puppet job$ cd modules/amp/tools/
+Alice:tools job$ ./create_files 
+Alice:tools job$ git commit -am 'added new machines to amp config'
+[master 8a45f3c] added new machines to amp config
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+Alice:tools job$ git push
+Counting objects: 11, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (6/6), done.
+Writing objects: 100% (6/6), 555 bytes, done.
+Total 6 (delta 4), reused 0 (delta 0)
+To git@github.com:SnijdersIT/ring-puppet.git
+   cf563a5..8a45f3c  master -> master
+Alice:tools job$ 
+
+eventuele stap 2)
+===============
+
+job@worker03:~$ sudo -s
+root@worker03:~# su - postgres
+postgres@worker03:~$ psql ampweb
+psql (9.1.6)
+Type "help" for help.
+
+ampweb=# insert into meshes (meshname, uid) values ('RO', -1);
+ampweb=# \q
+postgres@worker03:~$ 
+
+stap 3) 
+=======
+
+Alice: job$ ssh worker03.ring.nlnog.net
+job@worker03:~$ sudo -s
+root@worker03:~# su - postgres
+postgres@worker03:~$ /var/www/addSite ring-itmastaren01 ring-itmastaren SE RING
+postgres@worker03:~$ /var/www/addSite ring-itmastaren01:v6 ring-itmastaren:v6 SE RING
+postgres@worker03:~$ exit
+logout
+root@worker03:~# exit
+exit
+job@worker03:~$ 
 
 # Done.

@@ -2,8 +2,8 @@
 import sqlite3, sys, inspect, re, time, string, pycountry, os
 from string import Template
 
-DB='/var/ring/ring.sqlite'
-#DB='./ring.sqlite'
+#DB='/var/ring/ring.sqlite'
+DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
 PDNS=['ns01.ring.nlnog.net']
 
