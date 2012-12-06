@@ -13,9 +13,6 @@ echo "ssh-$type $key $keyid" | ring-admin add sshkeys $user
 # or import multiple keys from a file
 ring-admin add sshkeys $user $filename
 
-# Choose a userid for the participant's user and add it
-ring-admin update user $username userid $userid
-
 # Execute steps from add_new_machine.txt
 
 # Upload logo to /var/www/ring.nlnog.net/HTML/images/ring-logos/
