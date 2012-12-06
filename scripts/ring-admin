@@ -73,7 +73,7 @@ CREATE TABLE mremarks
 '''
 
 WEBSITETEXT='''
-Title: $company joined the RING
+Title: $company ($countrycode) joined the RING
 
 $company - AS $autnum - joined the RING today. $companydesc
 
@@ -728,14 +728,14 @@ class commands(object):
             autnum=str(mfirst['autnum'])
             dc=mfirst['dc']
             state=mfirst['state']
-            country=mfirst['country']
+            countrycode=mfirst['country']
         except StopIteration:
             pass
-        country=self.countryname(country,state)
+        country=self.countryname(countrycode,state)
         text=Template(WEBSITETEXT)
         print text.substitute(company=p['company'],companydesc=p['companydesc'],
                         hostname=hostname,autnum=autnum,
-                        dc=dc,country=country)
+                        dc=dc,country=country,countrycode=countrycode)
     
     def cmd_generate_welcomemail(self,username):
         """generate text for welcome mail"""
