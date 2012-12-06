@@ -27,6 +27,7 @@ CREATE TABLE users
     userid INTEGER,
     active INTEGER,
     participant INTEGER NOT NULL,
+    admin INTEGER,
     FOREIGN KEY(participant) REFERENCES participants(id)
 );
 CREATE TABLE machines
@@ -244,6 +245,16 @@ class commands(object):
         cols, vals = zip(*kwargs.items())
         query = 'SELECT * FROM %s WHERE %s' % (table, ' '.join('%s=?' % col for col in cols))
         return self.dbquery(query, vals)
+    
+    def dbselectmax(self, table, counter, where):
+        query = 'SELECT MAX(%s) FROM %s WHERE %s' % (counter, table, where)
+        res = list(self.dbquery(query))
+        if len(res)>1:
+            raise KeyError
+        elif res:
+            return res[0][0]
+        else:
+            return None
 
     def dbselectone(self, table, **kwargs):
         res = list(self.dbselect(table, **kwargs))
@@ -331,7 +342,11 @@ class commands(object):
             companydesc=companydesc,
             tstamp=tstamp)
         print 'participant %s added' % (partid)
-        uid=self.dbinsert('users',username=username,participant=partid)
+        userid=self.dbselectmax('users','userid','admin IS NULL OR admin=0')
+        userid=userid+1
+        uid=self.dbinsert('users',username=username,
+                                  participant=partid,
+                                  userid=userid)
         print 'user %s added for participant %s' % (uid,partid)
     
     def cmd_update_participant(self,username,attribute,value):
