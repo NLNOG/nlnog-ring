@@ -125,7 +125,7 @@ Host *.ring.nlnog.net
 ANNOUNCEMAIL='''
 From: ring-admins@ring.nlnog.net
 To: ring-users@mailman.ring.nlnog.net
-Subject: $company joined the RING
+Subject: $company ($countrycode) joined the RING
 
 Dear All,
 
@@ -767,14 +767,14 @@ class commands(object):
             autnum=str(mfirst['autnum'])
             dc=mfirst['dc']
             state=mfirst['state']
-            country=mfirst['country']
+            countrycode=mfirst['country']
         except StopIteration:
             pass
-        country=self.countryname(country,state)
+        country=self.countryname(countrycode,state)
         text=Template(ANNOUNCEMAIL)
         print text.substitute(company=p['company'],companydesc=p['companydesc'],
-                        hostname=hostname,autnum=autnum,
-                        dc=dc,state=state,country=country)
+                        hostname=hostname,autnum=autnum,dc=dc,state=state,
+                        country=country,countrycode=countrycode)
 
 def run(args):
     c = commands()
