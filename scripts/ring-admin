@@ -5,7 +5,6 @@ from string import Template
 #DB='/var/ring/ring.sqlite'
 DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
-PDNS=['ns01.ring.nlnog.net']
 
 SCHEMA='''
 CREATE TABLE participants
@@ -691,19 +690,17 @@ class commands(object):
         print "['"+p['company']+"', '"+str(u['username'])+".png', '"+\
               str(p['url'])+"', '"+hostname+"', '"+autnum+"'],"
     
-    def cmd_generate_dns(self,hostname):
-        """generate dns config"""
+    def cmd_dnscommands(self,hostname):
+        """generate dns commands"""
         if not (re.match(r'.*%s$' % ZONE,hostname)):
             hostname=hostname + "." + ZONE
         m=self.dbselectone('machines', hostname=hostname)
         if not m:
             sys.exit('machine %s not found' % hostname)
-        for ns in PDNS:
-            print "ssh "+ns+" ring-pdns add node "+ \
-                  m['hostname']+" "+m['v4']+" "+m['v6']
-        for ns in PDNS:
-            print "ssh "+ns+" ring-pdns activate node "+ \
-                  m['hostname']
+        print "ring-pdns add node "+ \
+              m['hostname']+" "+m['v4']+" "+m['v6']
+        print "ring-pdns activate node "+ \
+              m['hostname']
     
     def cmd_generate_webpost(self,username):
         """generate text for website post"""
