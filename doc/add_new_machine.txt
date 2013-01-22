@@ -10,11 +10,13 @@ lscpu
 
 # DNS:
 
-# update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node (currently via Job)
-
 # Database (on the master):
 
 ring-admin add machine $username $hostname $asnumber $countrycode $geo "$datacenter" $v4address $v6address [$statecode]
+
+# update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node
+
+ring-pdns add node <node> <v4> <v6> <geo>
 
 # Puppet repo:
 
@@ -34,7 +36,6 @@ cd modules/amp/tools/
 
 git commit -am '<your message>'
 git push && ssh master01.infra.ring.nlnog.net sudo ring-puppet-repo-sync
-
 
 # On the host:
 
@@ -66,58 +67,19 @@ deluser --remove-home nlnog
 # now is probably a good time for a reboot
 reboot
 
-
 # Finalize:
 
-# Add the node to the nodes TXT record so it can be used by ring-users (currently via Job)
+# Add the node to the nodes TXT record so it can be used by ring-users
+
+ring-pdns activate node <node> <countrycode>
+
 # Add the node to the google map (currently via Teun)
 
 # More AMP stuff
-
-stap 1) 
-=======
-
-Alice:~ job$ cd source/ring/ring-puppet/
-Alice:ring-puppet job$ cd modules/amp/tools/
-Alice:tools job$ ./create_files 
-Alice:tools job$ git commit -am 'added new machines to amp config'
-[master 8a45f3c] added new machines to amp config
- 1 file changed, 1 insertion(+), 1 deletion(-)
-Alice:tools job$ git push
-Counting objects: 11, done.
-Delta compression using up to 4 threads.
-Compressing objects: 100% (6/6), done.
-Writing objects: 100% (6/6), 555 bytes, done.
-Total 6 (delta 4), reused 0 (delta 0)
-To git@github.com:SnijdersIT/ring-puppet.git
-   cf563a5..8a45f3c  master -> master
-Alice:tools job$ 
-
-eventuele stap 2)
-===============
-
-job@worker03:~$ sudo -s
-root@worker03:~# su - postgres
-postgres@worker03:~$ psql ampweb
-psql (9.1.6)
-Type "help" for help.
-
-ampweb=# insert into meshes (meshname, uid) values ('RO', -1);
-ampweb=# \q
-postgres@worker03:~$ 
-
-stap 3) 
-=======
-
-Alice: job$ ssh worker03.ring.nlnog.net
-job@worker03:~$ sudo -s
-root@worker03:~# su - postgres
-postgres@worker03:~$ /var/www/addSite ring-itmastaren01 ring-itmastaren SE RING
-postgres@worker03:~$ /var/www/addSite ring-itmastaren01:v6 ring-itmastaren:v6 SE RING
-postgres@worker03:~$ exit
-logout
-root@worker03:~# exit
-exit
-job@worker03:~$ 
+#
+# ssh worker03
+# sudo su - postgres
+# ./addcountry <countrycode> (if new)
+# ./addnode <node> <countrycode>
 
 # Done.

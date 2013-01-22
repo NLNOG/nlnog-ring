@@ -2,8 +2,8 @@
 import sqlite3, sys, inspect, re, time, string, pycountry, os
 from string import Template
 
-#DB='/var/ring/ring.sqlite'
-DB='./ring.sqlite'
+DB='/var/ring/ring.sqlite'
+#DB='./ring.sqlite'
 ZONE='ring.nlnog.net'
 
 SCHEMA='''
@@ -698,9 +698,9 @@ class commands(object):
         if not m:
             sys.exit('machine %s not found' % hostname)
         print "ring-pdns add node "+ \
-              m['hostname']+" "+m['v4']+" "+m['v6']
+              m['hostname']+" "+m['v4']+" "+m['v6']+" "+m['geo']
         print "ring-pdns activate node "+ \
-              m['hostname']
+              m['hostname']+" "+m['country']
     
     def cmd_generate_webpost(self,username):
         """generate text for website post"""
