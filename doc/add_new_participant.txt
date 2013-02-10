@@ -17,10 +17,7 @@ ring-admin add sshkeys $user $filename
 
 # Upload logo to /var/www/ring.nlnog.net/HTML/images/ring-logos/
 # (rename to <owner>.png)
-
-# Add participant to /var/www/ring.nlnog.net/HTML/images/ring-logos/participants.js
-# TODO: We should be able to add more nodes here)
-ring-admin generate javascript $username
+scp $image master01.infra.ring.nlnog.net:/var/www/ring.nlnog.net/HTML/images/ring-logos/$owner.png
 
 # Add a news entry on the website https://ring.nlnog.net/wp-admin/post-new.php
 ring-admin generate webpost $username
