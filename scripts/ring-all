@@ -11,6 +11,7 @@ require 'yaml'
 # runs ssh to each node in parallel, returns hash with nodes as keys and array of output and end time
 class All
   Timeout   = 10
+  NodeLimit = 50
   StartTime = Time.now
   TTY       = $stdout.tty?
   Colours   = {
@@ -21,15 +22,19 @@ class All
   }
   Thread.abort_on_exception = true
 
-  def self.run cmd, timeout=Ring::All::Timeout, machine=false
+  def self.run cmd, cfg, machine=false
     ssh_all = {
       :output      => {},
       :end_time    => {},
       :exit_status => {},
       :unfinished  => [],
     }
+    timeout    = cfg[:timeout]    or Ring::All::Timeout
+    node_count = cfg[:node_count] or Ring::All::NodeLimit
     threads = []
-    Ring.nodes.each do |node|
+    nodes = Ring.nodes.shuffle
+    nodes = nodes.pop(node_count) if node_count > 0
+    nodes.each do |node|
       ssh_all[:output][node] = []
         threads << [Thread.new do 
           begin
@@ -123,10 +128,10 @@ class CLI
     if cfg[:mode]
       puts Ring::All.health
     elsif cfg[:machine]
-      puts YAML.dump Ring::All.run args.join(' '), cfg[:timeout], true
+      puts YAML.dump Ring::All.run args.join(' '), cfg, true
     else
       Ring.pager if Ring::All::TTY
-      puts Ring::All.run args.join(' '), cfg[:timeout]
+      puts Ring::All.run args.join(' '), cfg
     end
   end
 
@@ -136,6 +141,7 @@ class CLI
       opt.on('-t', '--timeout [TIMEOUT]', 'set timeout, default is ' + Ring::All::Timeout.to_s) { |v| cfg[:timeout] = v.to_i }
       opt.on('-m', '--machine', 'use machine output, instead of markdown') { cfg[:machine] = true }
       opt.on('-s', '--status', 'report health') { cfg[:mode] = 'health' }
+      opt.on('-n', '--nodes [COUNT]', 'from how many nodes, 0 for all') { |v| cfg[:node_count] = v.to_i }
       opt.on_tail('-h', '--help', 'show this message') { puts opt; exit }
     end
     args = opts.order!
