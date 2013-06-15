@@ -734,7 +734,11 @@ digraph G {
 
         if asn:
             # asns instead of ips
-            a = [(tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), "") for ip in ips if not (tracedata[ip].get("ix", False) and no_ixp)]
+            a = []
+            for ip in ips:
+                if not (tracedata[ip].get("ix", False) and no_ixp):
+                    a.append((tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), ""))
+           
 
             if remove_broken:
                 # remove unkown entries
