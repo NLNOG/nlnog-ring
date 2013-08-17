@@ -70,7 +70,8 @@ reboot
 # Finalize:
 
 # Add the node to the nodes TXT record so it can be used by ring-users
-
+# Note: Also active node in ring database for REST API
+ring-admin active machine <node>
 ring-pdns activate node <node> <countrycode>
 
 # Add the node to the google map (currently via Teun)
