@@ -9,6 +9,8 @@
 
 
  Changelog:
+ v1.7           fix crashing, use API
+ v1.6.2         fix crashing on empty data
  v1.6.1         minor fix for empty traces
  v1.6           show destination of the trace in label (issue #42)
                 added an additional hop in -a mode (issue #41)
@@ -37,7 +39,7 @@
 """
 
 import sys, os, threading, tempfile, time, random, re, operator, itertools
-import urllib, urllib2, socket, Queue, types
+import urllib, urllib2, socket, Queue, types, simplejson
 
 try:
     from dns.resolver import query
@@ -55,6 +57,7 @@ except:
 VERSION="1.6.1"
 DEBUG=0
 PASTEBIN="https://ring.nlnog.net/paste/"
+API_NODES="https://ring.nlnog.net/api/1.0/nodes"
 CONFIGFILE=os.path.expanduser("~/.ringtrace.cfg")
 MAX_EDGE_WIDTH=4
 MAX_DNS_THREAD=25
@@ -577,13 +580,14 @@ def get_hostlist():
     """
     hosts = []
     try:
-        # TCP query required due to the large TXT record
-        qres = query("ring.nlnog.net", "TXT", tcp=True)
-        for rr in qres:
-            for s in rr.strings:
-                for srv in s.split(' '):
-                    hosts.append(srv)
-    except DNSException, e:
+        req = urllib2.Request(API_NODES)
+        opener = urllib2.build_opener()
+        f = opener.open(req)
+        result = simplejson.load(f)
+        if result["info"]["success"] == 1:
+            hosts = [ host["hostname"].replace(".ring.nlnog.net", "") for host in result["results"]["nodes"] ]
+    except Exception, e:
+        print e
         return []
 
     return hosts
@@ -732,13 +736,15 @@ digraph G {
     for host in traces.keys():
         ips = [x.split(" ")[1] for x in traces[host]]
 
-        if asn:
+        if asn and ips:
             # asns instead of ips
             a = []
             for ip in ips:
-                if not (tracedata[ip].get("ix", False) and no_ixp):
-                    a.append((tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), ""))
-           
+                if tracedata.has_key(ip):
+                    if not (tracedata[ip].get("ix", False) and no_ixp):
+                        a.append((tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), ""))
+                else:
+                    debug("warning: cannot find %s:" % ip)
 
             if remove_broken:
                 # remove unkown entries
@@ -795,7 +801,11 @@ digraph G {
                         ips.remove(ip)
 
             for index in range(0, len(ips)):
-                fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(ips)-1 else "#ddffdd" if (tracedata[ips[index]]["ix"] and highlight_ixp) else "#ffffff"
+                try:
+                    fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(ips)-1 else "#ddffdd" if (tracedata[ips[index]]["ix"] and highlight_ixp) else "#ffffff"
+                except:
+                    pass
+
                 label = "%s%s\\nAS%s - %s" % (
                     ips[index],
                     "\\n%s" % tracedata[ips[index]]['fqdn'] if (index == 0 or resolve) else "",
