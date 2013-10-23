@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.7.2         Add flag -R for tranparent backgrounds (issue #59)
  v1.7.1         Only retrieve active nodes from API
  v1.7           fix crashing, use API
  v1.6.2         fix crashing on empty data
@@ -718,7 +719,7 @@ def analyse(traceroutes, resolve):
 
 
 def graph(traces, tracedata, destination, resolve, asn, no_ixp, 
-          show_country, remove_broken, highlight_ixp, remove_duplicate):
+          show_country, remove_broken, highlight_ixp, remove_duplicate, transparent):
     """Generate the entire graph.
     """
 
@@ -727,8 +728,9 @@ digraph G {
     fontsize=7 
     fontcolor="#777777" 
     labeljust=r
+    bgcolor="%s"
     label="ring-trace v%s to %s - https://ring.nlnog.net"
-""" % (VERSION, destination)
+""" % ("transparent" if transparent else "white", VERSION, destination)
     count = 0
     # using dicts to make nodes and edges unique
     nodes = {}
@@ -949,6 +951,7 @@ def read_config():
         "sshcommand":       "ssh",          # flag: -s, --ssh-command
         "filetype":         "jpg",          # flag: -t, --type
         "sshtimeout":       10,             # flag: -T, --timeout
+        "transparent":      False,          # flag: -R, --transparent
         "user":             None,           # flag: -u, --user
         "udp":              False,          # flag: -U, --udp
         "verbose":          0,              # flag: -v / -vv, --verbose, --extra-verbose
@@ -975,6 +978,7 @@ def read_config():
         "sshcommand":       "str",
         "filetype":         "enum:dot,gif,jpg,pdf,png,ps,svg",
         "sshtimeout":       "int",     
+        "transparent":      "bool",
         "user":             "str",           
         "udp":              "bool",
         "verbose":          "int",        
@@ -1142,6 +1146,14 @@ if __name__ == "__main__":
         default=conf["resolve"],  
     )
     parser.add_argument(
+        "-R", "--transparent", 
+        action="store_const", 
+        dest="transparent", 
+        help="make the background transparent",
+        const=True,
+        default=conf["transparent"],  
+    )
+    parser.add_argument(
         "-s", "--ssh-command", 
         action="store", 
         dest="sshcommand", 
@@ -1305,7 +1317,7 @@ if __name__ == "__main__":
 
     debug('generating graphs.')
     dot = graph(traces, tracedata, destination, ns.resolve, ns.asn, ns.no_ixp, 
-        ns.show_country, ns.remove_broken, ns.highlight_ixp, ns.remove_duplicate)
+        ns.show_country, ns.remove_broken, ns.highlight_ixp, ns.remove_duplicate, ns.transparent)
 
     debug('generating output file.')
     outfile = ns.outfile
