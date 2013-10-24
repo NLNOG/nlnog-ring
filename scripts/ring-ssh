@@ -21,6 +21,6 @@ fi
 if [ ! -S $SSH_AUTH_SOCK ];
 then 
     eval $(ssh-agent -a $SSH_AUTH_SOCK)
-    ssh-add ~/.ssh/ring.nlnog.net
+    ssh-add $keyfile
 fi
 ssh -A $@
