@@ -9,6 +9,8 @@
 
 
  Changelog:
+ v1.7.3         Enforce output type PNG when setting transparency
+                Fix error message when unable to do API query
  v1.7.2         Add flag -R for tranparent backgrounds (issue #59)
  v1.7.1         Only retrieve active nodes from API
  v1.7           fix crashing, use API
@@ -1277,9 +1279,7 @@ if __name__ == "__main__":
         print "Including %d hosts: %s" % (len(ns.include), " ".join(ns.include))
 
     if len(hosts) == 0:
-        print "WARNING: The list of hosts is empty. Are you blocking TCP-based DNS request by any chance?"
-        print "A TCP-based DNS query is required to retrieve the list of servers."
-        print "Please specify hosts manually using the -i flag."
+        print "Could not retrieve a list of ringnodes from the API." 
         sys.exit(1)
 
     print "Performing %s traceroutes towards %s from %d ring hosts, ssh-timeout is %d seconds." % (
@@ -1318,6 +1318,10 @@ if __name__ == "__main__":
     debug('generating graphs.')
     dot = graph(traces, tracedata, destination, ns.resolve, ns.asn, ns.no_ixp, 
         ns.show_country, ns.remove_broken, ns.highlight_ixp, ns.remove_duplicate, ns.transparent)
+
+    if ns.transparent and ns.outtype != "png":
+        print "Transparent background requested, setting file type to PNG."
+        ns.outtype = "png"
 
     debug('generating output file.')
     outfile = ns.outfile
