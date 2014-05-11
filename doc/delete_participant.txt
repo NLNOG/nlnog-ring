@@ -1,0 +1,25 @@
+# These steps are required to add a machine to the ring
+
+# Turn the node off
+shutdown -h now
+
+# Remove node(s) from database and dns
+
+ring-pdns del node <name> <countrycode>
+ring-admin delete machine <name>
+
+# Move user to 'former users section' in ring-manifests (set: ensure => absent)
+
+@add_user { 'ic-hosting':
+    email   => 'info@ic-hosting.nl',
+    company => 'IC Hosting',
+    uid => 5014,
+    groups  => ['ring-users'],
+    ensure => absent,
+}
+
+# Mark user as inactive in database
+
+ring-admin update user <user> active 0
+
+# Done.
