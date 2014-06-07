@@ -5,7 +5,7 @@ shutdown -h now
 
 # Remove node(s) from database and dns
 
-ring-pdns del node <name> <countrycode>
+ring-pdns del node <name>
 ring-admin delete machine <name>
 
 # Move user to 'former users section' in ring-manifests (set: ensure => absent)
