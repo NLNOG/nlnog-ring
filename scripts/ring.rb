@@ -28,11 +28,11 @@ class SSH
     # 'zlib(finalizer): the stream was freed prematurely.' from zlib to stderr. 
     Net::SSH.start(node, user, {:auth_methods=>%w(publickey), :compression=>false}) do |ssh|
       ssh.open_channel do |ch|
-        ch.exec(cmd) do |ch, ack|
-          ch.on_data                   { |ch, data| ssh_read data, stdout, :output=>output, :mode=>:stdout, &block}
-          ch.on_extended_data          { |ch, type, data| ssh_read data, stderr, :output=>output, :mode=>:stderr, &block}
-          ch.on_request('exit-status') { |ch, data| @exit_status += data.read_long }
-          ch.on_request('exit-signal') { |ch, data| @exit_status += (data.read_long << 8) }
+        ch.exec(cmd) do |_, ack|
+          ch.on_data                   { |_, data| ssh_read data, stdout, :output=>output, :mode=>:stdout, &block}
+          ch.on_extended_data          { |_, type, data| ssh_read data, stderr, :output=>output, :mode=>:stderr, &block}
+          ch.on_request('exit-status') { |_, data| @exit_status += data.read_long }
+          ch.on_request('exit-signal') { |_, data| @exit_status += (data.read_long << 8) }
         end
         ch.wait
       end
@@ -48,7 +48,7 @@ class SSH
     output = opt[:output] || ''
     mode =   opt[:mode]   || :stdout
     destination << source
-    lines = destination.to_a
+    lines = destination.lines
     destination.replace ''
     while line = lines.shift
       if line[-1..-1] == "\n"
