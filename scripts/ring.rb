@@ -48,7 +48,7 @@ class SSH
     output = opt[:output] || ''
     mode =   opt[:mode]   || :stdout
     destination << source
-    lines = destination.lines
+    lines = destination.lines.to_a
     destination.replace ''
     while line = lines.shift
       if line[-1..-1] == "\n"
