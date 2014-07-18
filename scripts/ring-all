@@ -56,9 +56,9 @@ class All
   end
 
 # runs command in each node, reporting if command was success and latency of node
-def self.health
+def self.health cfg
   out = ''
-  data = run 'echo xyzzy42', Ring::All::Timeout, true
+  data = run 'echo xyzzy42', cfg, true
   data[:output].each do |node, output|
     stop = data[:end_time][node] ? "%3fs" % (data[:end_time][node]-Ring::All::StartTime) : 'NaN'
     out << "%23s %s %s\n" % [node, output.first==["xyzzy42\n", :stdout] ? 'ACK' : 'NAK', stop]
@@ -126,7 +126,7 @@ class CLI
       exit 
     end
     if cfg[:mode]
-      puts Ring::All.health
+      puts Ring::All.health cfg
     elsif cfg[:machine]
       puts YAML.dump Ring::All.run args.join(' '), cfg, true
     else
