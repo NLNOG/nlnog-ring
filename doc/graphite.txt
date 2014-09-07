@@ -1,0 +1,25 @@
+Graphite
+--------
+
+Graphite can be found on graphite01.infra.ring.nlnog.net, which currently points
+to worker02.
+
+X. User management
+
+# Add this to your .bashrc
+alias ring-graphite='ssh -t graphite01.infra.ring.nlnog.net ring-graphite'
+
+# Add user
+ssh <user>01.ring.nlnog.net sudo cat ~<user>/.graphite | ring-graphite add user <user>
+
+# Update password
+ssh <user>01.ring.nlnog.net sudo cat ~<user>/.graphite | ring-graphite update user <user>
+
+# Delete user
+ring-graphite del user <user>
+
+X. Miscellaneous info
+
+Logging ends up in /opt/graphite/storage/log/
+Ping data is pushed using ringfpingd (written bij lochii)
+

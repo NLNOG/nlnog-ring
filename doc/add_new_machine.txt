@@ -16,7 +16,7 @@ ring-admin add machine $username $hostname $asnumber $countrycode $geo "$datacen
 
 # update DNS of ring.nlnog.net so $org.ring.nlnog.net is a CNAME towards the fqdn of the node
 
-ring-pdns add node <node> <v4> <v6> <geo>
+ring-pdns add node <node>
 
 # Puppet repo:
 
@@ -30,7 +30,7 @@ ring-admin generate hostsfile $hostname
 # /etc/puppet/manifests/ring-users.pp
 ring-admin generate puppet user $username
 
-# Setup AMP measuring
+# Setup AMP measuring (deprecated)
 cd modules/amp/tools/
 ./create_files
 
@@ -69,14 +69,12 @@ reboot
 
 # Finalize:
 
-# Add the node to the nodes TXT record so it can be used by ring-users
-# Note: Also active node in ring database for REST API
+# Activate node in ring database
+# Optional: activate node in DNS (automatic activation runs daily)
 ring-admin activate machine <node>
-ring-pdns activate node <node> <countrycode>
+ring-pdns activate node <node>
 
-# Add the node to the google map (currently via Teun)
-
-# More AMP stuff
+# More AMP stuff (deprecated)
 #
 # ssh worker03
 # sudo su - postgres
