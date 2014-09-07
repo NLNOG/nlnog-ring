@@ -650,6 +650,9 @@ def analyse(traceroutes, resolve):
                      "ix" : False,
                     }
 
+    # prevent crashes for unknown stuff
+    iplist[""] = iplist["???"]
+
     # bulk whois query at Cymru for lookups
     lookups = []
     try:
