@@ -342,6 +342,7 @@ ixps4 = [
    ("206.123.7.0/24", "JXIX", 0),
    ("206.108.236.0/24", "Boston Internet Exchange", 0),
    ("218.100.21.0/24", "PNIX", 0),
+   ("193.138.31.0/24", "Stuttgarter InternetXchange", 0),
 ]
 
 ixps6 = [
