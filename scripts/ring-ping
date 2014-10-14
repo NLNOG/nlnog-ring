@@ -28,12 +28,6 @@ fi
 host=$(echo "$1" | sed -re 's/[^[:alnum:]:.-]+//g')
 [ -n "${host//[^:]}" ] && ping="ping6"
 
-if ! getent hosts "${host}" >/dev/null; then
-    echo Invalid hostname "$host"
-    exit 1
-fi
-
-
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)'"
 ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
