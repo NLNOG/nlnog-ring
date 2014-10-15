@@ -8,7 +8,8 @@ shutdown -h now
 ring-pdns del node <name>
 ring-admin delete machine <name>
 
-# Move user to 'former users section' in ring-manifests (set: ensure => absent)
+# Remove all machines from manifests/nodes.pp and files/etc/hosts
+# Move user to 'former users section' in manifests/ring-users.pp (set: ensure => absent)
 
 @add_user { 'ic-hosting':
     email   => 'info@ic-hosting.nl',
