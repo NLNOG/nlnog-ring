@@ -1,18 +1,37 @@
 #!/usr/bin/env bash
+#
 # Written by Sten Spans <sten@snore.nl> 
+# Ported to freebsd and freebsd by Nick Hilliard <nick@foobar.org>
+#
+# Add the following to .ssh/config to get logins to work without
+# confirmation:
+# --
+# Host *.ring.nlnog.net
+#        StrictHostKeyChecking no
+#        User <yourusername>
+# --
+#
 
+debug=0
 ping="ping"
+nodes=50
 
-while getopts "6vh" flag; do
+while getopts "6vhdn:" flag; do
     case $flag in
 	6)
 	    ping="ping6"
+	    ;;
+	d)
+	    debug=1
+	    ;;
+	n)
+	    nodes=$OPTARG
 	    ;;
 	v)
 	    verbose=1
 	    ;;
 	*)
-	    echo "Usage: $(basename $0) [-6v] host"
+	    echo "Usage: $(basename $0) [-6v] [-n <numnodes>] host"
 	    exit 1
 	    ;;
     esac
@@ -21,23 +40,73 @@ done
 shift $((OPTIND-1))
 
 if [ $# -lt 1 ]; then
-    echo "Usage: $(basename $0) [-6v] host"
+    echo "Usage: $(basename $0) [-6vd] [-n <numnodes>] host"
     exit 1
 fi
 
-host=$(echo "$1" | sed -re 's/[^[:alnum:]:.-]+//g')
+# gnu sed needs "-r" for normal regexps; bsd sed requires "-E".  Solaris is
+# broken.
+
+sedre="-r"
+sed ${sedre} < /dev/null > /dev/null 2>&1
+if [ $? != 0 ]; then
+	sedre="-E"
+	sed ${sedre} < /dev/null > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		echo "sed does not understand extended regular expressions. exiting."
+		exit 1
+	fi
+fi
+
+# BSD requires fdescfs to be mounted
+if [ `uname -s` = 'FreeBSD' -a `mount | grep fdescfs | wc -l` -eq 0 ];  then
+	echo 'FreeBSD requires fdescfs to be mounted.  See fdescfs(5) for more details.'
+	exit 1
+fi
+
+host=$(echo "$1" | sed ${sedre} -e 's/[^[:alnum:]:.-]+//g')
 [ -n "${host//[^:]}" ] && ping="ping6"
 
-if ! getent hosts "${host}" >/dev/null; then
-    echo Invalid hostname "$host"
-    exit 1
-fi
+for cmd in $ping dig; do
+	location=`which ${cmd}`
+	if [ $? != 0 ]; then
+		echo "${cmd}: command not found."
+		exit 1
+	fi
+done
 
+# basic checks to ensure that silly stuff is not passed through.  It would
+# help if there were a getaddrinfo() command-line tool, but this does not
+# exist.
+ 
+# 1. check for general ipv4 style syntax: N.N.N.N
+# 2. check for general ipv6 style syntax: hex digits and :
+# 3. dns lookups for A and AAAA
+
+if [ `echo ${host} | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' | wc -l` -ne 0 ]; then
+	test ${debug} -ge 1 && echo DEBUG: host is ipv4
+elif [ `echo -n ${host} | sed ${sedre} -e 's/[0-9a-fA-F:]//g' | xargs echo | wc -l` -eq 0 ]; then
+	test ${debug} -ge 1 && echo DEBUG: host is ipv6
+elif [ `dig -t A +short ${host} | grep -v '^;' | wc -l` -ne 0 ]; then
+	test ${debug} -ge 1 && echo DEBUG: ipv4 A record lookup succeeded
+elif [ `dig -t AAAA +short ${host} | grep -v '^;' | wc -l` -ne 0 ]; then
+	test ${debug} -ge 1 && echo DEBUG: ipv6 A record lookup succeeded
+else
+	echo Invalid hostname ${host}
+	exit 1
+fi
 
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)'"
 ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
+
+# this list is not very random
+if [ ${nodes} -ne 0 ]; then
+	SERVERS=$(echo ${SERVERS} | fmt -1 | head -n ${nodes})
+fi
+
+test ${debug} -ge 1 && echo DEBUG: checking servers: ${SERVERS}
 
 declare -a results
 declare -a replies
