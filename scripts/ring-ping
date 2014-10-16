@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Written by Sten Spans <sten@snore.nl> 
-# Ported to freebsd and freebsd by Nick Hilliard <nick@foobar.org>
+# Ported to os/x and freebsd by Nick Hilliard <nick@foobar.org>
 #
 # Add the following to .ssh/config to get logins to work without
 # confirmation:
