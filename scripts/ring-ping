@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Written by Sten Spans <sten@snore.nl> 
-# Ported to OS/X and *BSD by Nick Hilliard <nick@foobar.org>
+# Ported to freebsd and freebsd by Nick Hilliard <nick@foobar.org>
 #
 # Add the following to .ssh/config to get logins to work without
 # confirmation:
@@ -14,9 +14,9 @@
 
 debug=0
 ping="ping"
-hostlimit=0
+nodes=50
 
-while getopts "6vhdl:" flag; do
+while getopts "6vhdn:" flag; do
     case $flag in
 	6)
 	    ping="ping6"
@@ -24,14 +24,14 @@ while getopts "6vhdl:" flag; do
 	d)
 	    debug=1
 	    ;;
-	l)
-	    hostlimit=$OPTARG
+	n)
+	    nodes=$OPTARG
 	    ;;
 	v)
 	    verbose=1
 	    ;;
 	*)
-	    echo "Usage: $(basename $0) [-6v] [-l <hostlimit>] host"
+	    echo "Usage: $(basename $0) [-6v] [-n <numnodes>] host"
 	    exit 1
 	    ;;
     esac
@@ -40,7 +40,7 @@ done
 shift $((OPTIND-1))
 
 if [ $# -lt 1 ]; then
-    echo "Usage: $(basename $0) [-6v] host"
+    echo "Usage: $(basename $0) [-6vd] [-n <numnodes>] host"
     exit 1
 fi
 
@@ -102,8 +102,8 @@ ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}"
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
 # this list is not very random
-if [ ${hostlimit} -ne 0 ]; then
-	SERVERS=$(echo ${SERVERS} | fmt -1 | head -n ${hostlimit})
+if [ ${nodes} -ne 0 ]; then
+	SERVERS=$(echo ${SERVERS} | fmt -1 | head -n ${nodes})
 fi
 
 test ${debug} -ge 1 && echo DEBUG: checking servers: ${SERVERS}
