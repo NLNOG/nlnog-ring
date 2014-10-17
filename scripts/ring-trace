@@ -43,7 +43,7 @@
 """
 
 import sys, os, threading, tempfile, time, random, re, operator, itertools
-import urllib, urllib2, socket, Queue, types, simplejson
+import urllib, urllib2, socket, Queue, types, simplejson, datetime
 
 try:
     from dns.resolver import query
@@ -1331,7 +1331,7 @@ if __name__ == "__main__":
     outfile = ns.outfile
 
     if not outfile:
-        outfile = "trace-%s.%s" % (ns.destination, ns.outtype)
+        outfile = "trace-%s-%s.%s" % (datetime.datetime.now().strftime('%F-%H-%M-%S-%Z'), ns.destination, ns.outtype)
     make_image(dot, ns.layout, outfile, ns.outtype, ns.pastebin, destination, traces)
 
     print "Done in %.1f seconds." % (time.time() - start)
