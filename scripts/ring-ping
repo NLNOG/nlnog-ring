@@ -48,10 +48,10 @@ fi
 # broken.
 
 sedre="-r"
-sed ${sedre} < /dev/null > /dev/null 2>&1
+sed ${sedre} -e 's///' < /dev/null > /dev/null 2>&1
 if [ $? != 0 ]; then
 	sedre="-E"
-	sed ${sedre} < /dev/null > /dev/null 2>&1
+	sed ${sedre} -e 's///' < /dev/null > /dev/null 2>&1
 	if [ $? != 0 ]; then
 		echo "sed does not understand extended regular expressions. exiting."
 		exit 1
