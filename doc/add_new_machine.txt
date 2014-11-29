@@ -39,6 +39,10 @@ git push && ssh master01.infra.ring.nlnog.net sudo ring-puppet-repo-sync
 
 # On the host:
 
+## Provision_node.sh (beta)
+cd /tmp && wget http://ring.nlnog.net/provision_node.sh && chmod +x provision_node.sh
+./provision_node.sh $org01
+
 # replace $org with organization name
 echo "$org01.ring.nlnog.net" > /etc/hostname
 hostname -F /etc/hostname
