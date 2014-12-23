@@ -8,10 +8,8 @@
 # Add the participant to the database
 ring-admin add participant $company "$contact" $email $nocemail $username "$companydescription" $url
 
-# Add SSH key
-echo "ssh-$type $key $keyid" | ring-admin add sshkeys $user
-# or import multiple keys from a file
-ring-admin add sshkeys $user $filename
+# Add SSH key (NEW !!!!! )
+place the ssh keys in ~${username}/ssh-keys on manage.ring.nlnog.net
 
 # Execute steps from add_new_machine.txt
 
