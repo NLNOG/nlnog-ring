@@ -711,7 +711,7 @@ def analyse(traceroutes, resolve):
         (ixlist, fun_addr, fun_net) = (ixps6, IPv6Address, IPv6Network) if ":" in ip else (ixps4, IPv4Address, IPv4Network)
         for (ix, desc, asn) in ixlist:
             try:
-                if fun_addr(ip) in fun_net(ix):
+                if fun_addr(ip) in fun_net(ix.rstrip()):
                     iplist[ip]["ix"] = True
                     if desc:
                         iplist[ip]["desc"] = desc
