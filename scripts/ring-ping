@@ -83,7 +83,7 @@ done
 # 2. check for general ipv6 style syntax: hex digits and :
 # 3. dns lookups for A and AAAA
 
-if [ `echo ${host} | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' | wc -l` -ne 0 ]; then
+if [ `echo ${host} | grep -E "\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b" | wc -l` -ne 0 ]; then
 	test ${debug} -ge 1 && echo DEBUG: host is ipv4
 elif [ `echo -n ${host} | sed ${sedre} -e 's/[0-9a-fA-F:]//g' | xargs echo | wc -l` -eq 0 ]; then
 	test ${debug} -ge 1 && echo DEBUG: host is ipv6
