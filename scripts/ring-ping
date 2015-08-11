@@ -122,7 +122,7 @@ while read line; do
 
     results=( ${results[@]} ${server} )
 
-    if [ -n "${output}" ]; then
+    if [[ ${output} = *rtt* ]]; then
 	time=`echo $output | cut -f6 -d/`
 	replies=( ${replies[@]} ${time} )
 	info=`echo $output | cut -f2- -d:`
