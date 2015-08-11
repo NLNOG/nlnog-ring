@@ -96,7 +96,7 @@ else
 	exit 1
 fi
 
-ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)'"
+ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :'\$(grep Location /etc/motd|cut -d: -f2)'"
 ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
@@ -121,7 +121,8 @@ while read line; do
     if [ -n "${output}" ]; then
 	time=`echo $output | cut -f6 -d/`
 	replies=( ${replies[@]} ${time} )
-	[ -n "${verbose}" ] && printf "%-30s %s\n" ${server}: $time
+	info=`echo $output | cut -f2- -d:`
+	[ -n "${verbose}" ] && printf "%-30s %-30s %s %s\n" ${server}: $time "$info"
     else
 	timeouts=( ${timeouts[@]} $server )
 	[ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: timeout
