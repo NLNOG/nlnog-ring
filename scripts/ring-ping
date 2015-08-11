@@ -97,7 +97,7 @@ else
 fi
 
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :'\$(grep Location /etc/motd|cut -d: -f2)'"
-ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
+ssh_cmd="ssh -q -o ConnectTimeout=3 {}.ring.nlnog.net ${ping_cmd}" 
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
