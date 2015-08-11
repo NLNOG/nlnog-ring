@@ -31,7 +31,7 @@ while getopts "6vhdn:" flag; do
 	    verbose=1
 	    ;;
 	*)
-	    echo "Usage: $(basename $0) [-6v] [-n <numnodes>] host"
+	    echo "Usage: $(basename $0) [-6vd] [-n <numnodes>] host"
 	    exit 1
 	    ;;
     esac
@@ -40,7 +40,11 @@ done
 shift $((OPTIND-1))
 
 if [ $# -lt 1 ]; then
+    echo "No arguments were given"
     echo "Usage: $(basename $0) [-6vd] [-n <numnodes>] host"
+    echo -e "\t-v \t\t print RTT for each server"
+    echo -e "\t-6 \t\t use IPv6 - obsolete, used only for backwards compatibility"
+    echo -e "\t-d \t\t debug mode"
     exit 1
 fi
 
