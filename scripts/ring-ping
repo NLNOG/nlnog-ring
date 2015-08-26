@@ -83,7 +83,7 @@ done
 # help if there were a getaddrinfo() command-line tool, but this does not
 # exist.
  
-# 1. check for general ipv4 style syntax: N.N.N.N
+# 1. check for general ipv4 style syntax: N.N.N.N (0.0.0.0 - 255.255.255.255)
 # 2. check for general ipv6 style syntax: hex digits and :
 # 3. dns lookups for A and AAAA
 
