@@ -144,9 +144,12 @@ if [ -n "${replies[*]}" ]; then
     echo ${#replies[@]} servers: ${avg}ms average
 fi
 
-[ -z "${timeouts[*]}" ] || echo unreachable via: ${timeouts[@]}
+uc=`(echo ${timeouts[*]} | tr ' ' '\n' | wc -l)`
+[ -z "${timeouts[*]}" ] || echo $uc unreachable via: ${timeouts[@]}
 
 connect=$(comm -23 <(echo "${SERVERS}" | sort) \
     <(echo ${results[@]} | tr ' ' '\n' | sort))
-[ -z "${connect[*]}" ] || echo ssh connection failed: ${connect[@]}
+    
+cc=`(echo ${connect[*]} | tr ' ' '\n' | wc -l)`
+[ -z "${connect[*]}" ] || echo $cc ssh connection failed: ${connect[@]}
 
