@@ -31,8 +31,11 @@ while getopts "6vhdn:" flag; do
 	v)
 	    verbose=1
 	    ;;
+	h)
+            minfo=1
+            ;;
 	*)
-	    echo "Usage: $(basename $0) [-6vd] [-n <numnodes>] host"
+	    echo "Usage: $(basename $0) [-6hvd] [-n <numnodes>] host"
 	    exit 1
 	    ;;
     esac
@@ -42,8 +45,9 @@ shift $((OPTIND-1))
 
 if [ $# -lt 1 ]; then
     echo "No arguments were given"
-    echo "Usage: $(basename $0) [-6vd] [-n <numnodes>] host"
+    echo "Usage: $(basename $0) [-6vhd] [-n <numnodes>] host"
     echo -e "\t-v \t\t print RTT for each server"
+    echo -e "\t-h \t\t print host information for each server"
     echo -e "\t-6 \t\t use IPv6 - obsolete, used only for backwards compatibility"
     echo -e "\t-d \t\t debug mode"
     exit 1
@@ -101,8 +105,13 @@ else
 	exit 1
 fi
 
-ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :'\$(grep Location: /etc/motd|cut -d: -f2)'"
-ssh_cmd="ssh -q -o ConnectTimeout=3 {}.ring.nlnog.net ${ping_cmd}" 
+if [ -n "${minfo}" ]; then
+	ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :'\$(grep Location: /etc/motd|cut -d: -f2)'"
+else
+        ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :"
+fi
+
+ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}" 
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
@@ -126,8 +135,11 @@ while read line; do
     if [[ ${output} = *rtt* ]]; then
 	time=`echo $output | cut -f6 -d/`
 	replies=( ${replies[@]} ${time} )
-	info=`echo $output | cut -f2- -d:`
-	[ -n "${verbose}" ] && printf "%-30s %-30s %s %s\n" ${server}: $time "$info"
+	[ -n "${verbose}" ] && [ -z "${minfo}" ] && printf "%-30s %-30s %s %s\n" ${server}: $time
+	if [ -n "${minfo}" ]; then
+		info=`echo $output | cut -f2- -d:`
+	fi
+	[ -n "${verbose}" ] && [ -n "${minfo}" ] && printf "%-30s %-30s %s %s\n" ${server}: $time "[$info ]"
     else
 	timeouts=( ${timeouts[@]} $server )
 	[ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: timeout
