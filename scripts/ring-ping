@@ -10,6 +10,7 @@
 #        StrictHostKeyChecking no
 #        User <yourusername>
 # --
+# --> A lot of modyfication by Arkadiusz Nowicki
 #
 
 debug=0
@@ -105,9 +106,9 @@ ssh_cmd="ssh -q -o ConnectTimeout=3 {}.ring.nlnog.net ${ping_cmd}"
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
-# this list is not very random
+# Now the this list is "quite a good" random
 if [ ${nodes} -ne 0 ]; then
-	SERVERS=$(echo ${SERVERS} | fmt -1 | head -n ${nodes})
+	SERVERS=$(echo ${SERVERS} | fmt -1 | sort -R | head -n ${nodes})
 fi
 
 test ${debug} -ge 1 && echo DEBUG: checking servers: ${SERVERS}
