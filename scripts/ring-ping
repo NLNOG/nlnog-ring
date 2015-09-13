@@ -116,25 +116,11 @@ fi
 
 
 if [ -n "${minfo}" ]; then
-<<<<<<< HEAD
-    ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :'\$(grep Location: /etc/motd|cut -d: -f2)'"
-else
-    ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :"
-fi
-
-
-ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}"
-=======
     hinfo=":'\$(grep Location: /etc/motd|cut -d: -f2)'"
 fi
 
-
 ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' $hinfo: $trace_cmd"
-
-
-
 ssh_cmd="ssh -q -o ConnectTimeout=3 {}.ring.nlnog.net ${ping_cmd}"
->>>>>>> 2cadf6f355cc255ab4b9b71cadb27326da774b6c
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
