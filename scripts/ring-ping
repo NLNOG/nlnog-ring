@@ -16,8 +16,9 @@
 debug=0
 ping="ping"
 nodes=50
+hinfo=""
 
-while getopts "6vidn:" flag; do
+while getopts "6vitdn:" flag; do
     case $flag in
     6)
         ping="ping6"
@@ -34,8 +35,11 @@ while getopts "6vidn:" flag; do
     i)
         minfo=1
         ;;
+        t)
+        thop=1
+        ;;
     *)
-        echo "Usage: $(basename $0) [-6ivd] [-n <numnodes>] host"
+        echo "Usage: $(basename $0) [-6ivtd] [-n <numnodes>] host"
         exit 1
         ;;
     esac
@@ -45,8 +49,9 @@ shift $((OPTIND-1))
 
 if [ $# -lt 1 ]; then
     echo "No arguments were given"
-    echo "Usage: $(basename $0) [-6vid] [-n <numnodes>] host"
+    echo "Usage: $(basename $0) [-6vitd] [-n <numnodes>] host"
     echo -e "\t-v \t\t print RTT for each server"
+    echo -e "\t-t \t\t print hop distance for each server"
     echo -e "\t-i \t\t print host information for each server"
     echo -e "\t-6 \t\t use IPv6 - obsolete, used only for backwards compatibility"
     echo -e "\t-d \t\t debug mode"
@@ -105,14 +110,17 @@ else
     exit 1
 fi
 
-if [ -n "${minfo}" ]; then
-    ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :'\$(grep Location: /etc/motd|cut -d: -f2)'"
-else
-    ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' :"
+if [ -n "${thop}" ]; then
+    trace_cmd="'\$(traceroute -I -N1  -w1 -q1 $host|wc -l)'"
 fi
 
 
-ssh_cmd="ssh -q -o ConnectTimeout=2 {}.ring.nlnog.net ${ping_cmd}"
+if [ -n "${minfo}" ]; then
+    hinfo=":'\$(grep Location: /etc/motd|cut -d: -f2)'"
+fi
+
+ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' $hinfo: $trace_cmd"
+ssh_cmd="ssh -q -o ConnectTimeout=3 {}.ring.nlnog.net ${ping_cmd}"
 
 SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
@@ -134,20 +142,27 @@ while read line; do
     results=( ${results[@]} ${server} )
 
     if [[ ${output} = *rtt* ]]; then
-    time=`echo $output | cut -f6 -d/`
+           time=`echo $output | cut -f6 -d/`
+            if [ -n "${minfo}" ]; then
+                info=`echo $output | cut -f2 -d:`
+                hops=`echo $output | cut -f3 -d:`
+                if [ -z "${info}" ]; then
+                    info=" No Info"
+                fi
+            else
+                hops=`echo $output | cut -f2 -d:`
+            fi
+
     replies=( ${replies[@]} ${time} )
-    [ -n "${verbose}" ] && [ -z "${minfo}" ] && printf "%-30s %-30s %s %s\n" ${server}: $time
-    if [ -n "${minfo}" ]; then
-        info=`echo $output | cut -f2- -d:`
-    fi
-    if [ -z "${info}" ]; then
-        info=" No Info"
-    fi
-    [ -n "${verbose}" ] && [ -n "${minfo}" ] && printf "%-30s %-30s %s %s\n" ${server}: $time "[$info ]"
+    [ -n "${verbose}" ] && [ -z "${minfo}" ] && printf "%-30s %-20s %s %s\n" ${server}: $time $hops
+
+    [ -n "${verbose}" ] && [ -n "${minfo}" ] && printf "%-30s %-20s %-10s %s %s %s\n" ${server}: $time $hops "[$info ]"
+
     else
-    timeouts=( ${timeouts[@]} $server )
-    [ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: timeout
+        timeouts=( ${timeouts[@]} $server )
+        [ -n "${verbose}" ] && printf "%-20s %s\n" ${server}: timeout
     fi
+
 
 done < <(echo "$SERVERS" | xargs -P10 -n1 -I{} sh -c "${ssh_cmd}||:")
 
