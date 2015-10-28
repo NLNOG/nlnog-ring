@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.8.1         Minor fix for graph output
  v1.8           Minor fix for ASN lookup
                 Added -f and -F flag for filtering results on IP and ASN
                 Added plain text output format (-t txt)
@@ -62,7 +63,7 @@ except:
     print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
     sys.exit(1)
 
-VERSION="1.8"
+VERSION="1.8.1"
 DEBUG=0
 PASTEBIN="https://ring.nlnog.net/paste/"
 API_NODES="https://ring.nlnog.net/api/1.0/nodes/active"
@@ -739,7 +740,7 @@ digraph G {
     fontcolor="#777777" 
     labeljust=r
     bgcolor="%s"
-    label="ring-trace v%s to %s - https://ring.nlnog.net\ngenerated at %s"
+    label="ring-trace v%s to %s - https://ring.nlnog.net generated at %s"
 """ % ("transparent" if transparent else "white", VERSION, destination, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
     count = 0
     # using dicts to make nodes and edges unique
