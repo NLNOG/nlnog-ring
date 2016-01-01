@@ -48,6 +48,7 @@ echo "$org01.ring.nlnog.net" > /etc/hostname
 hostname -F /etc/hostname
 
 # add /etc/hosts 
+echo "$nodeip $org01.ring.nlnog.net" >> /etc/hosts
 echo "95.211.149.24   master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
 echo "2001:1AF8:4013::24 master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
 
