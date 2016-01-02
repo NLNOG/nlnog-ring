@@ -20,14 +20,17 @@ ring-pdns add node <node>
 
 # Puppet repo:
 
-# generate config-snippets for the different puppet configs
+# generate config-snippets for the puppet node config
 # /etc/puppet/manifests/nodes.pp
 ring-admin generate puppet node $hostname
 
-# /etc/puppet/files/etc/hosts
+# deploy ansible configuration on dbmaster01 (note: requires ssh-agent)
+ring-admin ansible deploy
+
+# /etc/puppet/files/etc/hosts (deprecated)
 ring-admin generate hostsfile $hostname
 
-# /etc/puppet/manifests/ring-users.pp
+# /etc/puppet/manifests/ring-users.pp (deprecated)
 ring-admin generate puppet user $username
 
 # Setup AMP measuring (deprecated)
