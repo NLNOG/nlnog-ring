@@ -204,8 +204,10 @@ sub run_curl {
 
         # Body
         $response->{body} = $response_body;
-        $response->{body} =~ s/\s+$//;
-        $response->{md5} = md5_hex($response->{body});
+        if ($response->{body}) {
+            $response->{body} =~ s/\s+$//;
+            $response->{md5} = md5_hex($response->{body});
+        }
 
         # Info
         $response->{info} = parse_info($curl);
@@ -240,10 +242,10 @@ sub filter_response {
     }
 
     # Body
-    if ($opt->{body}) {
+    if ($opt->{body} && $response->{body}) {
         $filtered->{body} = $response->{body};
     }
-    if ($opt->{md5}) {
+    if ($opt->{md5} && $response->{md5}) {
         $filtered->{md5} = $response->{md5};
     }
 
