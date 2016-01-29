@@ -1,0 +1,300 @@
+#!/usr/bin/perl -w
+#
+# ring-curl - HTTP debugging for the NLNOG RING
+#
+# Author: Martin Pels <martin@rodecker.nl>
+#
+
+use strict;
+use warnings;
+
+use Digest::MD5 qw(md5_hex);
+use File::Basename;
+use Getopt::Long;
+use JSON;
+use WWW::Curl::Easy;
+
+my $ringall = '/usr/bin/env ring-all';
+my $HELP=<<"EOF"
+$0 [options] <url>
+
+Options:
+  --user-agent <string>\t\tUser-agent
+  --request-header <header>\tAdd request header
+  --request-type <GET|POST>\tRequest type
+  --post-data <string>\t\tData for POST request
+
+  --headers\t\t\tPrint all headers
+  --header <header>\t\tPrint specific header
+  --body\t\t\tPrint page body
+  --md5\t\t\t\tPrint md5sum of page body
+  --curlinfo\t\t\tPrint curl variable
+  --curl-param <variable>\tPrint specific curl variable
+  --all\t\t\t\tPrint all data
+
+  --output <txt|json|perl>\tOutput format
+  --local\t\t\tOnly run on local RING node
+  --ring-opts <string>\t\tArgument string to pass to 'ring-all'
+  --help\t\t\tDisplay this message
+
+EOF
+;
+
+# Remove ring-opts from stored command-line
+my @command_args = @ARGV;
+for my $i (0 .. $#command_args) {
+    if ($command_args[$i] and $command_args[$i] eq '--ring-opts') {
+        splice(@command_args,$i,2);
+    }
+}
+my $command_line = join(' ',@command_args);
+
+# Parse options
+my $opt = {};
+GetOptions ("user-agent=s"       => \$opt->{useragent},
+            "request-header=s@"  => \$opt->{requestheader},
+            "request-type=s"     => \$opt->{requesttype},
+            "post-data=s"        => \$opt->{postdata},
+
+            "headers"            => \$opt->{headers},
+            "header=s@"          => \$opt->{header},
+            "body"               => \$opt->{body},
+            "md5"                => \$opt->{md5},
+            "curlinfo"           => \$opt->{curlinfo},
+            "curl-param=s@"      => \$opt->{curlparam},
+            "all"                => \$opt->{all},
+
+            "output=s"           => \$opt->{output},
+            "local"              => \$opt->{local},
+            "ring-opts=s"        => \$opt->{ringopts},
+            "help"               => \$opt->{help},
+) or die(print_help());
+$opt->{url} = $ARGV[0];
+print_help() if ($opt->{help} or not $opt->{url});
+
+# Default information to return
+if (! $opt->{headers} and
+    ! $opt->{header} and
+    ! $opt->{body} and
+    ! $opt->{md5} and
+    ! $opt->{curlinfo} and
+    ! $opt->{curlparam} and
+    ! $opt->{all}) {
+    $opt->{curlparam} = ['http_code'];
+}
+if (! $opt->{ringopts}) {
+    $opt->{ringopts} = '-n 50 -t 30';
+}
+
+# Run local or global
+if ($opt->{local}) {
+    my $curl = WWW::Curl::Easy->new;
+    set_options($curl,$opt);
+    my $response = run_curl($curl);
+    my $output = filter_response($response,$opt);
+
+    if (! $opt->{output} or $opt->{output} eq 'txt') {
+        print_txt($output);
+    } elsif ($opt->{output} eq 'json') {
+        print_json($output);
+    } elsif ($opt->{output} eq 'perl') {
+        print_perl($output);
+    } else {
+        print_help();
+    }
+} else {
+    my $command = $ringall." ".$opt->{ringopts}." '/usr/bin/env ".basename($0)." --local ".$command_line."'";
+    print `$command`;
+}
+
+## Subroutines ##
+
+# Print help
+sub print_help {
+    print STDERR $HELP;
+    exit 255;
+}
+
+# Set curl options
+sub set_options {
+    my $curl = shift;
+    my $opt  = shift;
+
+    # Set URL
+    $curl->setopt(CURLOPT_URL,$opt->{url});
+
+    # Set request type
+    if ($opt->{requesttype}) {
+        if ($opt->{requesttype} eq 'POST') {
+            $curl->setopt(CURLOPT_POST,1);
+            if ($opt->{postdata}) {
+                $curl->setopt(CURLOPT_POSTFIELDS,$opt->{postdata});
+            }
+        } elsif ($opt->{requesttype} eq 'PUT') {
+            $curl->setopt(CURLOPT_PUT,1);
+        } elsif ($opt->{requesttype} ne 'GET') {
+            print_help();
+        }
+    }
+
+    # Set user-agent
+    if ($opt->{useragent}) {
+        $curl->setopt(CURLOPT_USERAGENT,$opt->{useragent});
+    }
+
+    # Set custom request headers    
+    if ($opt->{requestheader}) {
+        my @custom_headers;
+	foreach my $header (@{$opt->{requestheader}}) {
+            push(@custom_headers,$header);
+        }
+        $curl->setopt(CURLOPT_HTTPHEADER,\@custom_headers);
+    }
+}
+
+# Create datastructure of HTTP headers
+sub parse_headers {
+    my $raw_headers = shift;
+    my $output;
+
+    my @lines = split(/\n+/,$raw_headers);
+    foreach my $line (@lines) {
+	$line =~ s/\s+$//;
+        next if ($line !~ /[^:]+:\s.+/);
+        my ($name,$content) = split(/:\s/,$line);
+        $output->{$name} = $content;
+    }
+    return $output;
+}
+
+# Retrieve CURLINFO values
+sub parse_info {
+    my $curl = shift;
+    my $output;
+    foreach my $entry ( keys %main:: ) {
+        # Only info items
+        next if ($entry !~ /^CURLINFO_/);
+        # The following items cause segfaults
+        next if ($entry =~ /^CURLINFO_CERTINFO/);
+        next if ($entry =~ /^CURLINFO_SLIST/);
+
+        my $name = lc($entry);
+        $name =~ s/^curlinfo_//;
+        my $info = $curl->getinfo(main->$entry);
+        if ($info) {
+            $output->{$name} = $info;
+        }
+    }
+    return $output;
+}
+
+# Run curl locally and return datastructure
+sub run_curl {
+    my $curl = shift;
+    my $response = {};
+
+    my ($response_headers,$response_body);
+    $curl->setopt(CURLOPT_WRITEHEADER,\$response_headers);
+    $curl->setopt(CURLOPT_FILE,\$response_body);
+    my $retcode = $curl->perform;
+    
+    if ($retcode == 0) {
+        # Headers
+        $response->{headers} = parse_headers($response_headers);
+
+        # Body
+        $response->{body} = $response_body;
+        $response->{body} =~ s/\s+$//;
+        $response->{md5} = md5_hex($response->{body});
+
+        # Info
+        $response->{info} = parse_info($curl);
+
+        return $response;
+    } else {
+        print STDERR $curl->errbuf."\n";
+        exit $retcode;
+    }
+}
+
+# Filter curl response based on commandline parameters
+sub filter_response {
+    my $response = shift;
+    my $opt = shift;
+
+    if ($opt->{all}) {
+        return $response;
+    }
+    my $filtered;
+
+    # Headers
+    if ($opt->{headers}) {
+        $filtered->{headers} = $response->{headers};
+    }
+    if ($opt->{header}) {
+	foreach my $header (@{$opt->{header}}) {
+            if ($response->{headers}->{$header}) {
+                $filtered->{headers}->{$header} = $response->{headers}->{$header};
+            }
+        }
+    }
+
+    # Body
+    if ($opt->{body}) {
+        $filtered->{body} = $response->{body};
+    }
+    if ($opt->{md5}) {
+        $filtered->{md5} = $response->{md5};
+    }
+
+    # CURLINFO
+    if ($opt->{curlinfo}) {
+        $filtered->{info} = $response->{info};
+    }
+    if ($opt->{curlparam}) {
+	foreach my $param (@{$opt->{curlparam}}) {
+            if ($response->{info}->{$param}) {
+                $filtered->{info}->{$param} = $response->{info}->{$param};
+            }
+        }
+    }
+    return $filtered;
+}
+
+# Print in text format
+sub print_txt {
+    my $output = shift;
+
+    if ($output->{headers}) {
+        foreach my $header (keys(%{$output->{headers}})) {
+            print $header.": ".$output->{headers}->{$header}."\n";
+        }
+    }
+    if ($output->{body}) {
+        print $output->{body}."\n";
+    }
+    if ($output->{md5}) {
+        print $output->{md5}."\n";
+    }
+    if ($output->{info}) {
+        foreach my $param (keys(%{$output->{info}})) {
+            print $param.": ".$output->{info}->{$param}."\n";
+        }
+    }
+}
+
+# Print in JSON format
+sub print_json {
+    my $output = shift;
+    my $json = JSON->new;
+    print $json->pretty->encode($output)."\n";
+}
+
+# Print using Data::Dumper
+sub print_perl {
+    my $output = shift;
+    use Data::Dumper;
+    print Dumper($output);
+}
+
+__END__
