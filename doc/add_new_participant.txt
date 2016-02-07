@@ -22,9 +22,9 @@ scp $image master01.infra.ring.nlnog.net:/var/www/ring.nlnog.net/HTML/images/rin
 ring-admin generate webpost $username
 
 # Send a welcome mail to the participant
-ring-admin generate welcomemail $username
+ring-admin send welcomemail $username
 
 # Send mail to the ring-users list
-ring-admin generate announcemail $username
+ring-admin send announcemail $username
 
 # Done.
