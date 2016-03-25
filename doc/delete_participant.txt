@@ -8,19 +8,8 @@ shutdown -h now
 ring-pdns del node <name>
 ring-admin delete machine <name>
 
-# Remove all machines from manifests/nodes.pp and files/etc/hosts
-# Move user to 'former users section' in manifests/ring-users.pp (set: ensure => absent)
-
-@add_user { 'ic-hosting':
-    email   => 'info@ic-hosting.nl',
-    company => 'IC Hosting',
-    uid => 5014,
-    groups  => ['ring-users'],
-    ensure => absent,
-}
-
 # Mark user as inactive in database
 
 ring-admin update user <user> active 0
 
-# Done.
+# Done. Ansible will do the rest.
