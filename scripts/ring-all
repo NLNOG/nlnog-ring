@@ -32,7 +32,11 @@ class All
     timeout    = (cfg[:timeout]    or Ring::All::Timeout)
     node_count = (cfg[:node_count] or Ring::All::NodeLimit)
     threads = []
-    nodes = Ring.nodes.shuffle
+    if cfg[:country]
+      nodes = Ring.nodes(cfg[:country]).shuffle
+    else
+      nodes = Ring.nodes.shuffle
+    end
     nodes = nodes.pop(node_count) if node_count.to_i > 0
     nodes.each do |node|
       ssh_all[:output][node] = []
@@ -95,7 +99,8 @@ def self.all_to_string cmd, data
     end
     delay = unfinished.index(node) ? 'timeout' : '%.3f' % (end_time[node]-Ring::All::StartTime) + 's'
     status = exit_status[node].to_i != 0 ? ' => ' + exit_status[node].to_s : ''
-    out << str = "%s (%s) - \'%s\'%s\n" % [node, delay, cmd, status]
+    cc = Ring.countrycode(node)
+    out << str = "%s [%s] (%s) - \'%s\'%s\n" % [node, cc, delay, cmd, status]
     out << '%s' % mu[:end]
     out << "%s%s%s\n" % [mu[:hl], '-' * (str.size-1), mu[:end]]
     output.each do |line|
@@ -138,6 +143,7 @@ class CLI
   def parseOptions cfg
     opts = OptionParser.new do |opt|
       opt.banner = 'Usage: ' + $0 + " [options] <cmd>"
+      opt.on('-c', '--country [COUNTRY]', 'only use nodes in COUNTRY') { |v| cfg[:country] = v }
       opt.on('-t', '--timeout [TIMEOUT]', 'set timeout, default is ' + Ring::All::Timeout.to_s) { |v| cfg[:timeout] = v.to_i }
       opt.on('-m', '--machine', 'use machine output, instead of markdown') { cfg[:machine] = true }
       opt.on('-s', '--status', 'report health') { cfg[:mode] = 'health' }

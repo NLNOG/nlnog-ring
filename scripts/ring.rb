@@ -3,12 +3,16 @@
 
 module Ring
 require 'etc'
+require 'net/http'
+require 'net/https'
+require 'json'
+
 Domain  = 'ring.nlnog.net'
 User    = Etc.getlogin
 Date    = Time.now.utc.strftime '%Y-%m-%d %H:%M:%S (UTC)'
-NodeCMD = "dig #{Ring::Domain} txt +short +tcp|tr -d '\"'|tr ' ' '\n'"
 Pager   = '/usr/bin/less -R'
 SSHCMD  = 'ssh -q -t -C '
+API     = 'https://ring.nlnog.net/api/1.0'
 
 class SSH
   require 'net/ssh'
@@ -99,9 +103,42 @@ class Lock
 end
 
 # returns array of ring node hostnames
-def self.nodes
-  ## TODO: make it pure ruby, once ring has new enough resolv module with TCP support
-  %x(#{Ring::NodeCMD}).split "\n"
+def self.nodes(*country)
+  url = "#{Ring::API}/nodes/active"
+  if country.any?
+    url = "#{Ring::API}/nodes/active/country/#{country[0]}"
+  end
+
+  uri = URI.parse(url)
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  request = Net::HTTP::Get.new(uri.request_uri)
+  resp = http.request(request)
+  json = JSON.parse(resp.body)
+  results = json['results']['nodes']
+  ret = []
+  results.each do |key|
+    ret.push("#{key['hostname']}".sub(".#{Ring::Domain}",''))
+  end
+  return ret
+end
+
+# returns countrycode for a ring node
+def self.countrycode(node)
+  url = "#{Ring::API}/nodes/hostname/#{node}.#{Ring::Domain}"
+  uri = URI.parse(url)
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  request = Net::HTTP::Get.new(uri.request_uri)
+  resp = http.request(request)
+  json = JSON.parse(resp.body)
+  if json['info']['resultcount'] > 0
+    return json['results']['nodes'][0]['countrycode']
+  else
+    return nil
+  end
 end
 
 # replace myself with pager, and run original in child process whose input is directed to mum
