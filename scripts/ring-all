@@ -32,11 +32,7 @@ class All
     timeout    = (cfg[:timeout]    or Ring::All::Timeout)
     node_count = (cfg[:node_count] or Ring::All::NodeLimit)
     threads = []
-    if cfg[:country]
-      nodes = Ring.nodes(cfg[:country]).shuffle
-    else
-      nodes = Ring.nodes.shuffle
-    end
+    nodes = Ring.nodes(cfg[:country]).shuffle
     nodes = nodes.pop(node_count) if node_count.to_i > 0
     nodes.each do |node|
       ssh_all[:output][node] = []
