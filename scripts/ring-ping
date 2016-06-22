@@ -54,6 +54,7 @@ if [ $# -lt 1 ]; then
     echo -e "\t-t \t\t print hop distance for each server"
     echo -e "\t-i \t\t print host information for each server"
     echo -e "\t-6 \t\t use IPv6 - obsolete, used only for backwards compatibility"
+    echo -e "\t-n \t\t number of nodes in test"
     echo -e "\t-d \t\t debug mode"
     exit 1
 fi
