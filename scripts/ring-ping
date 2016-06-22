@@ -181,7 +181,7 @@ uc=`(echo ${timeouts[*]} | tr ' ' '\n' | wc -l)`
 
 connect=$(comm -23 <(echo "${SERVERS}" | sort) \
     <(echo ${results[@]} | tr ' ' '\n' | sort))
-    
+
 cc=`(echo ${connect[*]} | tr ' ' '\n' | wc -l)`
 [ -z "${connect[*]}" ] || echo $cc ssh connection failed: ${connect[@]}
 
