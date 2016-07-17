@@ -21,6 +21,7 @@ fi
 if [ ! -S $SSH_AUTH_SOCK ];
 then 
     eval $(ssh-agent -a $SSH_AUTH_SOCK)
+    ssh-add -D
     ssh-add $keyfile
 fi
 ssh -A $@
