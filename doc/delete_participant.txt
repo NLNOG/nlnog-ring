@@ -8,8 +8,8 @@ shutdown -h now
 ring-pdns del node <name>
 ring-admin delete machine <name>
 
-# Mark user as inactive in database
+# Mark all users for the participant as inactive
 
-ring-admin update user <user> active 0
+ring-admin deactivate participant <username>
 
 # Done. Ansible will do the rest.
