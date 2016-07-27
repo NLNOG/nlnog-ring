@@ -23,6 +23,8 @@ Options:
   --request-header <header>\tAdd request header
   --request-type <GET|POST>\tRequest type
   --post-data <string>\t\tData for POST request
+  -4, --ipv4\t\t\tResolve to IPv4 addresses
+  -6, --ipv6\t\t\tResolve to IPv6 addresses
 
   --headers\t\t\tPrint all headers
   --header <header>\t\tPrint specific header
@@ -55,6 +57,8 @@ GetOptions ("user-agent=s"       => \$opt->{useragent},
             "request-header=s@"  => \$opt->{requestheader},
             "request-type=s"     => \$opt->{requesttype},
             "post-data=s"        => \$opt->{postdata},
+            "4|ipv4"             => \$opt->{ipv4},
+            "6|ipv6"             => \$opt->{ipv6},
 
             "headers"            => \$opt->{headers},
             "header=s@"          => \$opt->{header},
@@ -149,6 +153,13 @@ sub set_options {
             push(@custom_headers,$header);
         }
         $curl->setopt(CURLOPT_HTTPHEADER,\@custom_headers);
+    }
+
+    # Set IP resolve mode
+    if ($opt->{ipv6}) {
+        $curl->setopt(CURLOPT_IPRESOLVE,CURL_IPRESOLVE_V6);
+    } elsif ($opt->{ipv4}) {
+        $curl->setopt(CURLOPT_IPRESOLVE,CURL_IPRESOLVE_V4);
     }
 }
 
