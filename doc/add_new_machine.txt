@@ -47,23 +47,19 @@ cd /tmp && wget http://ring.nlnog.net/provision_node.sh && chmod +x provision_no
 ./provision_node.sh $org01
 
 # replace $org with organization name
-echo "$org01.ring.nlnog.net" > /etc/hostname
-hostname -F /etc/hostname
-
+# echo "$org01.ring.nlnog.net" > /etc/hostname
+# hostname -F /etc/hostname
 # add /etc/hosts 
-echo "$nodeip $org01.ring.nlnog.net" >> /etc/hosts
-echo "95.211.149.24   master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
-echo "2001:1AF8:4013::24 master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
-
+# echo "$nodeip $org01.ring.nlnog.net" >> /etc/hosts
+# echo "95.211.149.24   master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
+# echo "2001:1AF8:4013::24 master01 master01.infra.ring.nlnog.net puppet" >> /etc/hosts
 # install puppet
-
-apt-get -y install curl
-curl https://ring.nlnog.net/ring.key | apt-key add -
-curl https://ring.nlnog.net/sources.list > /etc/apt/sources.list
-apt-get update; apt-get -y dist-upgrade; apt-get -y install puppet puppet-common
-
+#apt-get -y install curl
+#curl https://ring.nlnog.net/ring.key | apt-key add -
+#curl https://ring.nlnog.net/sources.list > /etc/apt/sources.list
+#apt-get update; apt-get -y dist-upgrade; apt-get -y install puppet puppet-common
 # run puppet until everything is up2date
-puppetd --test; puppetd --test; puppetd --test
+#puppetd --test; puppetd --test; puppetd --test
 
 # logout; then log in as a ring-admin user
 # if ring-admin users exist (for puppet has behaved well) you can delete 
