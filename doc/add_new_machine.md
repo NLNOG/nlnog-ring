@@ -39,6 +39,14 @@ ansible-playbook --vault-password-file=open-the-vault.sh -i nodes -l $machine -u
 
 **note**: `-k -K` is required to specify the logon and sudo password
 
+# Add the hostkey of the new node to the databae
+
+on `dbmaster01`:
+
+```
+cat <file with hostkey> | ring-admin add hostkey <node>
+```
+
 # Set the node to active
 
 ring-admin activate machine <node>
