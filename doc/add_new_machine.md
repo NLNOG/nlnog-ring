@@ -39,6 +39,14 @@ ansible-playbook --vault-password-file=open-the-vault.sh -i nodes -l $machine -u
 
 **note**: `-k -K` is required to specify the logon and sudo password
 
+# Reboot and clean up
+
+```
+reboot
+passwd --delete root
+deluser --remove-home <provisioning_user>
+```
+
 # Add the hostkey of the new node to the databae
 
 on `dbmaster01`:
