@@ -34,7 +34,8 @@ ring-admin ansible deploy
 From the `ring-ansible` repository:
 
 ```
-ansible-playbook --vault-password-file=open-the-vault.sh -i nodes -l $machine -u $initial_user -k -K provision.yml
+git pull
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --vault-password-file=open-the-vault.sh -i nodes -l $machine -u $initial_user -k -K provision.yml
 ```
 
 **note**: `-k -K` is required to specify the logon and sudo password
@@ -52,10 +53,11 @@ deluser --remove-home <provisioning_user>
 on `dbmaster01`:
 
 ```
-cat <file with hostkey> | ring-admin add hostkey <node>
+ring-admin scan hostkeys <node>
 ```
 
 # Set the node to active
 
 ring-admin activate machine <node>
 ring-pdns activate node <node>
+
