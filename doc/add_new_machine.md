@@ -1,10 +1,5 @@
 These steps are required to add a machine to the ring
 
-# Check that the host has working ipv4 and ipv6 connectivity
-
-check if cpu is 64 bit - if not please report to the owner of the machine that we do not support 32 bit machines in the ring
-lscpu
-
 # Add machine to the database
 
 on `master01.infra.ring.nlnog.net`:
