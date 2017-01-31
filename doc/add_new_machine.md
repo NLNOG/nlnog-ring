@@ -48,14 +48,6 @@ passwd --delete root
 deluser --remove-home <provisioning_user>
 ```
 
-# Add the hostkey of the new node to the databae
-
-on `dbmaster01`:
-
-```
-ring-admin scan hostkeys <node>
-```
-
 # Set the node to active
 
 ring-admin activate machine <node>
