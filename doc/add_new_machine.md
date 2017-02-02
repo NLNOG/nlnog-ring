@@ -30,7 +30,7 @@ From the `ring-ansible` repository:
 
 ```
 git pull
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --vault-password-file=open-the-vault.sh -i nodes -l $machine -u $initial_user -k -K provision.yml
+ansible-playbook -c ssh --vault-password-file=open-the-vault.sh -i nodes -l $machine -u $initial_user -k -K provision.yml
 ```
 
 **note**: `-k -K` is required to specify the logon and sudo password
