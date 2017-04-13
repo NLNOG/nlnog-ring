@@ -24,4 +24,8 @@ then
     ssh-add -D
     ssh-add $keyfile
 fi
-ssh -A $@
+host=$1
+if [[ $host != *"ring.nlnog.net" ]]; then
+  host=$host.ring.nlnog.net
+fi
+ssh -A $host ${@:2}
