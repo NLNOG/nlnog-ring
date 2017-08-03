@@ -362,7 +362,7 @@ ixps6 = [
     ("2001:43f8:01f1:0::/64", "CINX", 0),
     ("2001:43f8:01f1:1::/64", "CINX", 0),
     ("2001:43f8::/64", "TIX - Tanzania", 0),
-    ("2001:470:1f07:cff::/64", "PIX", 0),  # 
+    ("2001:470:1f07:cff::/64", "PIX", 0),
     ("2001:478:124::/48", "NOTA", 0),
     ("2001:478:132::/64", "Telx Atlanta", 0),
     ("2001:478:186::/64", "Telx Phoenix", 0),
@@ -481,7 +481,7 @@ ixps6 = [
 
 
 class LookupThread(threading.Thread):
-    
+
     def __init__(self, index, queue):
         self.queue = queue
         self.result = {}
@@ -519,7 +519,7 @@ class TraceThread(threading.Thread):
         self.result  = ""
         threading.Thread.__init__(self)
 
-    
+
     def run(self):
         # run the mtr command
         cmd = "%s %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s --report-wide -c1 -r -n %s %s\"" % (
@@ -527,7 +527,7 @@ class TraceThread(threading.Thread):
             "-v" if DEBUG > 1 else "",
             self.timeout,
             "-l %s" % self.user if self.user != None else "",
-            self.host, self.proto, 
+            self.host, self.proto,
             "-u" if self.udp else "",
             self.dest,
         )
@@ -557,7 +557,7 @@ class TraceThread(threading.Thread):
             qres = [qstr]
 
         # add the host as first hop so the graphs are easier to understand
-        lines.insert(0, "0. %s" % qres[0]) 
+        lines.insert(0, "0. %s" % qres[0])
 
         self.result = lines
 
@@ -609,7 +609,7 @@ def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
 
     result = {}
     threads = {}
-    
+
     # launch all threads
     for host in hosts:
         threads[host] = TraceThread(host, destination, user, proto, udp, timeout, sshcommand)
@@ -630,13 +630,50 @@ def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
     return result
 
 
+def cymru_origins(addr):
+    reverseaddr = reversename.from_address(addr).to_text()
+    reverseaddr = reverseaddr.replace('.in-addr.arpa.','.{0}')
+    reverseaddr = reverseaddr.replace('.ip6.arpa.','.{1}')
+    originquery = reverseaddr.format('origin.asn.cymru.com.','origin6.asn.cymru.com')
+    try:
+        origins = query(originquery,'TXT')
+    except:
+        return []
+    return origins
+
+
+def cymru_paths(addr):
+    reverseaddr = reversename.from_address(addr).to_text()
+    reverseaddr = reverseaddr.replace('.in-addr.arpa.','.{}')
+    reverseaddr = reverseaddr.replace('.ip6.arpa.','.{}')
+    peerquery   = reverseaddr.format('peer.asn.cymru.com.')
+    try:
+        paths = query(peerquery,'TXT')
+    except:
+        return []
+    return paths
+
+
+def cymru_descr(asn):
+    asnquery    = "as{}.asn.cymru.com".format(asn.strip())
+    try:
+        descrs = query(asnquery,'TXT')
+        descr=""
+        for d in descrs:
+            (dasn,dcountry,dregion,ddate,ddescr)=d.to_text().lstrip('"').rstrip('"').split('|')
+            descr+=ddescr.strip()
+    except:
+        return "unknown"
+    return descr
+
+
 def analyse(traceroutes, resolve):
     """Analyse results, build a map with data for each IP found
     """
 
     lst = {}
     iplist = {}
-    
+
     # generate a list of unique IPs
     for host in traceroutes.keys():
         hops = [h.split()[1] for h in traceroutes[host]]
@@ -649,44 +686,30 @@ def analyse(traceroutes, resolve):
                     iplist[ip]["resolve"] = True
             i += 1
 
-    iplist["???"] = {"fqdn" : "unknown", 
-                     "asn" : "unknown", 
-                     "country" : "unknown", 
-                     "desc" : "unknown",  
+    iplist["???"] = {"fqdn" : "unknown",
+                     "asn" : "unknown",
+                     "country" : "unknown",
+                     "desc" : "unknown",
                      "ix" : False,
                     }
 
     # prevent crashes for unknown stuff
     iplist[""] = iplist["???"]
 
+    debug("Talking to Cymru using DNS.")
     # bulk whois query at Cymru for lookups
-    lookups = []
-    try:
-        result = ""
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(("whois.cymru.com", 43))
-        s.sendall("begin\ncountrycode\nnoheader\nasname\n%s\nend\n" % "\n".join(lst.keys()))
-        s.shutdown(socket.SHUT_WR)
-        while 1:
-            data = s.recv(1024)
-            if not data:
-                break
-            result += data
-        s.close()
-        lookups = result.strip().split("\n")[1:]
-    except:
-        print "Failed to lookup ASNs at cymru.com."
-        return iplist
-    for line in lookups:
-        try:
-            (asn, ip, country, desc) = [item.strip() for item in line.split("|")]
-            iplist[ip]["fqdn"] =  ""
-            iplist[ip]["asn"] =  "unknown" if asn == "NA" else asn
-            iplist[ip]["country"] =  country
-            iplist[ip]["desc"] =  "unknown" if desc == "NA" else desc
-            iplist[ip]["ix"] =  False
-        except: 
-            debug("Failed to parse ASN lookup line: %s" % line)
+    for addr in lst.keys():
+        origins = cymru_origins(addr)
+        for origin in origins:
+            try:
+                (asnr,prefix,country,ncc,date)=[item.strip() for item in origin.to_text().lstrip('"').rstrip('"').split('|')]
+                iplist[addr]["fqdn"] = ""
+                iplist[addr]["asn"] = asnr
+                iplist[addr]["country"] =  country
+                iplist[addr]["desc"] =  cymru_descr(asnr)
+                iplist[addr]["ix"] =  False
+            except:
+                debug("Failed to parse response: {}".format(origin.to_text()))
 
     # DNS lookups of fqdns
     debug("Looking up DNS entries.")
@@ -709,7 +732,7 @@ def analyse(traceroutes, resolve):
             iplist[ip]["fqdn"] = result[ip]
 
     debug("%d DNS lookups done." % len(iplist))
-    
+
     debug("Checking IXP lists.")
     # check for each IP if it's an IXP address
     for ip in iplist.keys():
@@ -729,15 +752,15 @@ def analyse(traceroutes, resolve):
     return iplist
 
 
-def graph(traces, tracedata, destination, resolve, asn, no_ixp, 
+def graph(traces, tracedata, destination, resolve, asn, no_ixp,
           show_country, remove_broken, highlight_ixp, remove_duplicate, transparent):
     """Generate the entire graph.
     """
 
     result  = """
-digraph G { 
-    fontsize=7 
-    fontcolor="#777777" 
+digraph G {
+    fontsize=7
+    fontcolor="#777777"
     labeljust=r
     bgcolor="%s"
     label="ring-trace v%s to %s - https://ring.nlnog.net generated at %s"
@@ -784,7 +807,7 @@ digraph G {
                 else:
                     label = "%s%s\\nAS%s" % (
                         "%s\\n" % host if index == 0 else "",
-                        asns[index][2].split(" ")[0], 
+                        asns[index][2].split(" ")[0],
                         asns[index][0]
                     )
                 nodes["    node%s_%d%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\"]" % (
@@ -792,11 +815,11 @@ digraph G {
                     colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
                     label, fc,
                 )] = 1
-                
+
                 if index < len(asns)-1:
                     edgename = "node%s_%d%s -> node%s_0" % (
                         asns[index][0], count if index == 0  else 0, "f" if index == 0 else "",
-                        asns[index + 1][0], 
+                        asns[index + 1][0],
                     )
                     l = edgelist.get(edgename, [])
                     l.append(colors[count % len(colors)])
@@ -828,7 +851,7 @@ digraph G {
                 if show_country:
                     label = "%s (%s)" % (label, tracedata[ips[index]]['country'])
                 nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
-                    ips[index].replace(':','_').replace('?', 'X').replace('.', '_'), 
+                    ips[index].replace(':','_').replace('?', 'X').replace('.', '_'),
                     count if index == 0 else 0,
                     colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
                     label,
@@ -837,9 +860,9 @@ digraph G {
 
                 if index < len(ips)-1:
                     edgename = "node%s_%d -> node%s_0" % (
-                        ips[index].replace(':','_').replace('?','X').replace('.','_'), 
+                        ips[index].replace(':','_').replace('?','X').replace('.','_'),
                         count if index == 0 else 0,
-                        ips[index + 1].replace(':','_').replace('?','X').replace('.','_'), 
+                        ips[index + 1].replace(':','_').replace('?','X').replace('.','_'),
                     )
                     l = edgelist.get(edgename, [])
                     l.append(colors[count % len(colors)])
@@ -864,7 +887,7 @@ def make_text(traces, tracedata, outfile, pastebin, asn, dest):
     """
 
     out = []
-    out.append("traceroutes to %s generated by ring-trace %s at %s\n" % (dest, VERSION, 
+    out.append("traceroutes to %s generated by ring-trace %s at %s\n" % (dest, VERSION,
         time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
     if asn:
         for trace in traces:
@@ -875,7 +898,7 @@ def make_text(traces, tracedata, outfile, pastebin, asn, dest):
                 ip = line.split(" ")[1]
                 if tracedata.get(ip, "?")["asn"] != prev:
                     out.append("%d.|-- AS%s (%s)" % (count, tracedata[ip].get("asn", "?"), tracedata[ip].get("desc", "?")))
-                    count += 1 
+                    count += 1
                     prev = tracedata[ip]["asn"]
 
             out.append("\n")
@@ -905,7 +928,7 @@ def make_text(traces, tracedata, outfile, pastebin, asn, dest):
         ]
         postdata = urllib.urlencode(postarray)
         try:
-            req = urllib2.Request(url=PASTEBIN, data=postdata)   
+            req = urllib2.Request(url=PASTEBIN, data=postdata)
             result = urllib2.urlopen(req)
             if result.url == PASTEBIN:
                 print "\nFailed to upload the output to the pastebin."
@@ -942,7 +965,7 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
     except:
         print "failed to create temporary file: %s" % fname
         sys.exit(1)
-    
+
     if pastebin:
         outtype = "png"
     try:
@@ -971,7 +994,7 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
             ]
         postdata = urllib.urlencode(postarray)
         try:
-            req = urllib2.Request(url=PASTEBIN, data=postdata)   
+            req = urllib2.Request(url=PASTEBIN, data=postdata)
             result = urllib2.urlopen(req)
             if result.url == PASTEBIN:
                 print "\nFailed to upload the image to the pastebin."
@@ -993,7 +1016,7 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
 def filter(traces, tracedata, filter_ip, filter_asn):
     """Filter traced based on lists of IPs and ASNs.
     """
-    
+
     remove = {}
     for trace in traces:
         found = False
@@ -1062,27 +1085,27 @@ def read_config():
     }
 
     conftypes = {
-        "groupbyasn":       "bool",    
-        "pastebin":         "bool",      
+        "groupbyasn":       "bool",
+        "pastebin":         "bool",
         "includehosts":     "list",
-        "excludehosts":     "list",   
+        "excludehosts":     "list",
         "showcountry":      "bool",
         "removebroken":     "bool",
         "removeduplicate":  "bool",
         "highlightixp":     "bool",
         "layout":           "enum:dot,neato,fdp,sfdp,twopi,circo",
-        "usenodes":         "int",       
+        "usenodes":         "int",
         "filename":         "str",
-        "topnodes":         "int",       
-        "resolve":          "bool",       
+        "topnodes":         "int",
+        "resolve":          "bool",
         "sshcommand":       "str",
         "filetype":         "enum:dot,gif,jpg,pdf,png,ps,svg,txt",
-        "sshtimeout":       "int",     
+        "sshtimeout":       "int",
         "transparent":      "bool",
-        "user":             "str",           
+        "user":             "str",
         "udp":              "bool",
-        "verbose":          "int",        
-        "excludeixp":       "bool",    
+        "verbose":          "int",
+        "excludeixp":       "bool",
         "ipv4":             "bool",
         "ipv6":             "bool",
         "via-ip":           "str",
@@ -1126,7 +1149,7 @@ def read_config():
 
 if __name__ == "__main__":
     start = time.time()
-    
+
     print "ring-trace v%s - written by Teun Vink <teun@teun.tv>" % VERSION
 
     # set debugging before we start argparsing
@@ -1134,9 +1157,9 @@ if __name__ == "__main__":
         DEBUG = 1
 
     debug("debugging enabled.")
-    
+
     debug('gathering list of hosts to query.')
-    hosts = get_hostlist() 
+    hosts = get_hostlist()
     hosts.sort()
     debug("%d hosts available" % len(hosts))
 
@@ -1144,219 +1167,219 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Perform a series of mtr's using the nlnog ring and visualise the results.\n\nAvailable hosts (%d): %s" % (
-            len(hosts), 
+            len(hosts),
             " ".join(hosts)
-        ), 
-        epilog="Visit http://ring.nlnog.net for more information.", 
+        ),
+        epilog="Visit http://ring.nlnog.net for more information.",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", help="destination of the traces")
     asarg = parser.add_mutually_exclusive_group()
     asarg.add_argument(
-        "-a", "--asn", 
-        action="store_const", 
-        dest="asn", 
-        help="group by ASN instead of IP", 
-        default=conf['groupbyasn'], 
+        "-a", "--asn",
+        action="store_const",
+        dest="asn",
+        help="group by ASN instead of IP",
+        default=conf['groupbyasn'],
         const=True
     )
     asarg.add_argument(
-        "-c", "--show-country", 
-        action="store_const", 
-        dest="show_country", 
+        "-c", "--show-country",
+        action="store_const",
+        dest="show_country",
         help="show country codes for IP addresses",
-        default=conf['showcountry'], 
+        default=conf['showcountry'],
         const=True
     )
     parser.add_argument(
-        "-b", "--pastebin", 
-        action="store_const", 
-        dest="pastebin", 
-        help="send output to a pastebin instead of saving it to file", 
-        default=conf['pastebin'], 
+        "-b", "--pastebin",
+        action="store_const",
+        dest="pastebin",
+        help="send output to a pastebin instead of saving it to file",
+        default=conf['pastebin'],
         const=True
     )
     parser.add_argument(
-        "-B", "--remove-broken-hops", 
-        action="store_const", 
-        dest="remove_broken", 
-        help="remove broken hops from output image", 
-        default=conf['removebroken'], 
+        "-B", "--remove-broken-hops",
+        action="store_const",
+        dest="remove_broken",
+        help="remove broken hops from output image",
+        default=conf['removebroken'],
         const=True
     )
     parser.add_argument(
-        "-d", "--remove-duplicate-edges", 
-        action="store_const", 
-        dest="remove_duplicate", 
-        help="remove duplicate edges from output image", 
-        default=conf['removeduplicate'], 
+        "-d", "--remove-duplicate-edges",
+        action="store_const",
+        dest="remove_duplicate",
+        help="remove duplicate edges from output image",
+        default=conf['removeduplicate'],
         const=True
     )
     parser.add_argument(
-        "-e", "--exclude", 
-        action="append", 
-        dest="exclude", 
-        help="exclude a specific host", 
-        default=conf['excludehosts'], 
+        "-e", "--exclude",
+        action="append",
+        dest="exclude",
+        help="exclude a specific host",
+        default=conf['excludehosts'],
         metavar="HOST"
     )
     parser.add_argument(
-        "-f", "--filter-ip", 
-        action="append", 
-        dest="filter_ip", 
-        help="only use paths via given IP address", 
-        default=conf['via-ip'], 
+        "-f", "--filter-ip",
+        action="append",
+        dest="filter_ip",
+        help="only use paths via given IP address",
+        default=conf['via-ip'],
         metavar="IP"
     )
     parser.add_argument(
-        "-F", "--filter-asn", 
-        action="append", 
-        dest="filter_asn", 
-        help="only use paths via given ASN address", 
-        default=conf['via-asn'], 
+        "-F", "--filter-asn",
+        action="append",
+        dest="filter_asn",
+        help="only use paths via given ASN address",
+        default=conf['via-asn'],
         metavar="ASN"
     )
     parser.add_argument(
-        "-i", "--include", 
-        action="append", 
-        dest="include", 
-        help="include this host", 
-        default=conf['includehosts'], 
+        "-i", "--include",
+        action="append",
+        dest="include",
+        help="include this host",
+        default=conf['includehosts'],
         metavar="HOST"
     )
     parser.add_argument(
-        "-l", "--layout", 
-        action="store", 
-        dest="layout", 
+        "-l", "--layout",
+        action="store",
+        dest="layout",
         choices=("dot", "neato", "fdp", "sfdp", "twopi", "circo"),
         help="layout style (dot by default)",
         default=conf["layout"]
     )
     parser.add_argument(
-        "-n", "--random", 
-        action="store", 
-        dest="random", 
+        "-n", "--random",
+        action="store",
+        dest="random",
         help="pick a given number of hosts at random",
-        default=conf["usenodes"], 
+        default=conf["usenodes"],
         type=int
     )
     parser.add_argument(
-        "-o", "--output", 
-        action="store", 
-        dest="outfile", 
-        help="output filename (trace-DESTINATION.type by default)", 
+        "-o", "--output",
+        action="store",
+        dest="outfile",
+        help="output filename (trace-DESTINATION.type by default)",
         default=conf["filename"]
     )
     parser.add_argument(
-        "-p", "--hops", 
-        action="store", 
-        dest="hops", 
-        metavar="N", 
-        help="pick top N and bottom N hosts based on hopcount", 
+        "-p", "--hops",
+        action="store",
+        dest="hops",
+        metavar="N",
+        help="pick top N and bottom N hosts based on hopcount",
         default=conf["topnodes"],
         type=int
     )
     parser.add_argument(
-        "-r", "--resolve", 
-        action="store_const", 
-        dest="resolve", 
+        "-r", "--resolve",
+        action="store_const",
+        dest="resolve",
         help="try to resolve all addresses (WARNING: can take long!)",
         const=True,
-        default=conf["resolve"],  
+        default=conf["resolve"],
     )
     parser.add_argument(
-        "-R", "--transparent", 
-        action="store_const", 
-        dest="transparent", 
+        "-R", "--transparent",
+        action="store_const",
+        dest="transparent",
         help="make the background transparent",
         const=True,
-        default=conf["transparent"],  
+        default=conf["transparent"],
     )
     parser.add_argument(
-        "-s", "--ssh-command", 
-        action="store", 
-        dest="sshcommand", 
+        "-s", "--ssh-command",
+        action="store",
+        dest="sshcommand",
         help="(alternative) command to use for SSH (to allow the use of wrappers)",
-        default=conf["sshcommand"],  
+        default=conf["sshcommand"],
     )
     parser.add_argument(
-        "-t", "--type", 
-        action="store", 
-        dest="outtype", 
-        choices=("dot", "gif", "pdf", "png", "jpg", "ps", "svg", "txt"), 
+        "-t", "--type",
+        action="store",
+        dest="outtype",
+        choices=("dot", "gif", "pdf", "png", "jpg", "ps", "svg", "txt"),
         help="output filetype (jpg by default)",
         default=conf["filetype"]
     )
     parser.add_argument(
-        "-T", "--timeout", 
-        action="store", 
-        dest="timeout", 
-        type=int, 
+        "-T", "--timeout",
+        action="store",
+        dest="timeout",
+        type=int,
         help="SSH connection timeout in seconds (10 by default)",
         default=int(conf["sshtimeout"])
     )
     parser.add_argument(
-        "-u", "--user", 
-        action="store", 
-        dest="user", 
-        help="username for SSH logins", 
+        "-u", "--user",
+        action="store",
+        dest="user",
+        help="username for SSH logins",
         default=conf["user"]
     )
     parser.add_argument(
-        "-U", "--udp", 
-        action="store_const", 
-        dest="udp", 
-        help="use UDP instead of ICMP ECHO", 
-        const=True, 
+        "-U", "--udp",
+        action="store_const",
+        dest="udp",
+        help="use UDP instead of ICMP ECHO",
+        const=True,
         default=conf["udp"]
     )
     parser.add_argument(
-        "-v", "--verbose", 
-        action="store_const", 
-        dest="debug", 
-        help="verbose mode", 
-        const=1, 
+        "-v", "--verbose",
+        action="store_const",
+        dest="debug",
+        help="verbose mode",
+        const=1,
         default=int(conf["verbose"])
     )
     parser.add_argument(
-        "-vv", "--extra-verbose", 
-        action="store_const", 
-        dest="debug2", 
-        help="extra verbose mode (SSH debugging)", 
-        const=2, 
+        "-vv", "--extra-verbose",
+        action="store_const",
+        dest="debug2",
+        help="extra verbose mode (SSH debugging)",
+        const=2,
         default=int(conf["verbose"])
     )
     ixarg = parser.add_mutually_exclusive_group()
     ixarg.add_argument(
-        "-x", "--exclude-ixp", 
-        action="store_const", 
-        dest="no_ixp", 
-        help="remove IXP hops from traces", 
-        const=True, 
+        "-x", "--exclude-ixp",
+        action="store_const",
+        dest="no_ixp",
+        help="remove IXP hops from traces",
+        const=True,
         default=conf["excludeixp"]
     )
     ixarg.add_argument(
-        "-X", "--highlight-ixp-hops", 
-        action="store_const", 
-        dest="highlight_ixp", 
-        help="highlight IXP hops in output", 
-        const=True, 
+        "-X", "--highlight-ixp-hops",
+        action="store_const",
+        dest="highlight_ixp",
+        help="highlight IXP hops in output",
+        const=True,
         default=conf["highlightixp"]
     )
     proto = parser.add_mutually_exclusive_group()
     proto.add_argument(
-        "-4", "--ipv4", 
-        action="store_const", 
-        dest="ipv4", 
-        help="enforce IPv4", 
-        const=True, 
+        "-4", "--ipv4",
+        action="store_const",
+        dest="ipv4",
+        help="enforce IPv4",
+        const=True,
         default=conf["ipv4"]
     )
     proto.add_argument(
-        "-6", "--ipv6", 
-        action="store_const", 
-        dest="ipv6", 
-        help="enforce IPv6", 
-        const=True, 
+        "-6", "--ipv6",
+        action="store_const",
+        dest="ipv6",
+        help="enforce IPv6",
+        const=True,
         default=conf["ipv6"]
     )
 
@@ -1395,7 +1418,7 @@ if __name__ == "__main__":
         print "Including %d hosts: %s" % (len(ns.include), " ".join(ns.include))
 
     if len(hosts) == 0:
-        print "Could not retrieve a list of ringnodes from the API." 
+        print "Could not retrieve a list of ringnodes from the API."
         sys.exit(1)
 
     print "Performing %s traceroutes towards %s from %d ring hosts, ssh-timeout is %d seconds." % (
@@ -1434,7 +1457,7 @@ if __name__ == "__main__":
             newtraces[t[0]] = traces[t[0]]
         traces = newtraces
 
-    
+
     if ns.outtype == "txt":
         make_text(traces, tracedata, ns.outfile, ns.pastebin, ns.asn, destination)
     else:
@@ -1449,7 +1472,7 @@ if __name__ == "__main__":
             colors.append("#%x" % c)
 
         debug('generating graphs.')
-        dot = graph(traces, tracedata, destination, ns.resolve, ns.asn, ns.no_ixp, 
+        dot = graph(traces, tracedata, destination, ns.resolve, ns.asn, ns.no_ixp,
             ns.show_country, ns.remove_broken, ns.highlight_ixp, ns.remove_duplicate, ns.transparent)
 
         if ns.transparent and ns.outtype != "png":
