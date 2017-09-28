@@ -667,6 +667,23 @@ def cymru_descr(asn):
     return descr
 
 
+def extract_hops(host, traceroute):
+    hops = []
+    for h in traceroute:
+        hop = h.split()[1]
+        if hop == "???":
+            # Make sure that unknown hops still end up with a unique name
+            hop_id = h.split()[0].split('.')[0]
+            hop = "unknown_{}_{}".format(host, hop_id)
+        hops.append(hop)
+    return hops
+
+
+def ip_label(ip):
+    if ip.startswith("unknown"):
+        return "???"
+    return ip
+
 def analyse(traceroutes, resolve):
     """Analyse results, build a map with data for each IP found
     """
@@ -674,27 +691,29 @@ def analyse(traceroutes, resolve):
     lst = {}
     iplist = {}
 
+    # prevent crashes for unknown stuff
+    iplist[""] = {
+        "fqdn" : "unknown",
+        "asn" : "unknown",
+        "country" : "unknown",
+        "desc" : "unknown",
+        "ix" : False,
+    }
+
     # generate a list of unique IPs
     for host in traceroutes.keys():
-        hops = [h.split()[1] for h in traceroutes[host]]
+        hops = extract_hops(host, traceroutes[host])
+
         i = 0
         for ip in hops:
             iplist[ip] = {}
-            if ip != "???":
+            if ip.startswith("unknown_"):
+                iplist[ip] = iplist[""]
+            else:
                 lst[ip] = ip
                 if (i == 0) or (i == len(hops)-1):
                     iplist[ip]["resolve"] = True
             i += 1
-
-    iplist["???"] = {"fqdn" : "unknown",
-                     "asn" : "unknown",
-                     "country" : "unknown",
-                     "desc" : "unknown",
-                     "ix" : False,
-                    }
-
-    # prevent crashes for unknown stuff
-    iplist[""] = iplist["???"]
 
     debug("Talking to Cymru using DNS.")
     # bulk whois query at Cymru for lookups
@@ -771,7 +790,7 @@ digraph G {
     edges = {}
     edgelist = {}
     for host in traces.keys():
-        ips = [x.split(" ")[1] for x in traces[host]]
+        ips = extract_hops(host, traces[host])
 
         if asn and ips:
             # asns instead of ips
@@ -785,7 +804,7 @@ digraph G {
 
             if remove_broken:
                 # remove unkown entries
-                for i in ["unknown", "???", "NA"]:
+                for i in ["unknown", "NA"]:
                     while i in [x[0] for x in a]:
                         for x in a:
                             if x[0] == i:
@@ -827,9 +846,7 @@ digraph G {
         else:
             if remove_broken:
                 # remove unkown entries
-                for i in ["unknown", "???", "NA"]:
-                    while i in ips:
-                        ips.remove(i)
+                ips = [i for i in ips if not i.startswith('unknown') and not i == "NA"]
 
             # remove IXP hops if wanted
             if no_ixp:
@@ -844,7 +861,7 @@ digraph G {
                     pass
 
                 label = "%s%s\\nAS%s - %s" % (
-                    ips[index],
+                    ip_label(ips[index]),
                     "\\n%s" % tracedata[ips[index]]['fqdn'] if (index == 0 or resolve) else "",
                     tracedata[ips[index]].get('asn', ' unknown'), tracedata[ips[index]].get('desc', '').split(' ')[0],
                 )
