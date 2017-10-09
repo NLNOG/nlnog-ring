@@ -1,0 +1,12 @@
+We use libvirt to make VMs on the container nodes we've been given
+by our sponsors.
+
+Making a VM is straight forward, but at this moment not done
+via ansible. You'll have to manually log in and create a VM to
+your liking:
+
+    $ ssh -XYA container07.infra.ring.nlnog.net
+    $ sudo -E virt-manager
+
+Make sure to attach the VM to the proper shared network bridge, usually this is
+'virbr0' or 'virbr1'. Also make sure to flag the VM as 'autostart'.
