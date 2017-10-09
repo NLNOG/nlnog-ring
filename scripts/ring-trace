@@ -701,7 +701,7 @@ def analyse(traceroutes, resolve):
     iplist[""] = {
         "fqdn" : "unknown",
         "asn" : "unknown",
-        "country" : "unknown",
+        "country" : "??",
         "desc" : "unknown",
         "ix" : False,
     }
@@ -872,7 +872,7 @@ digraph G {
                     tracedata[ips[index]].get('asn', ' unknown'), tracedata[ips[index]].get('desc', '').split(' ')[0],
                 )
                 if show_country:
-                    label = "%s (%s)" % (label, tracedata[ips[index]]['country'])
+                    label = "%s (%s)" % (label, tracedata[ips[index]].get('country', '??'))
                 nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
                     cleanup_name(ips[index]),
                     count if index == 0 else 0,
