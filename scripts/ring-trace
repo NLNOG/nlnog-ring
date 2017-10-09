@@ -667,6 +667,12 @@ def cymru_descr(asn):
     return descr
 
 
+def cleanup_name(name):
+    """Cleans up and normalize a name so that it can be used as a Graphviz
+    node name"""
+    return name.replace(':', '_').replace('?', 'X').replace('.', '_').replace('-', '_')
+
+
 def extract_hops(host, traceroute):
     hops = []
     for h in traceroute:
@@ -674,7 +680,7 @@ def extract_hops(host, traceroute):
         if hop == "???":
             # Make sure that unknown hops still end up with a unique name
             hop_id = h.split()[0].split('.')[0]
-            hop = "unknown_{}_{}".format(host, hop_id)
+            hop = "unknown_{}_{}".format(cleanup_name(host), hop_id)
         hops.append(hop)
     return hops
 
@@ -695,7 +701,7 @@ def analyse(traceroutes, resolve):
     iplist[""] = {
         "fqdn" : "unknown",
         "asn" : "unknown",
-        "country" : "unknown",
+        "country" : "??",
         "desc" : "unknown",
         "ix" : False,
     }
@@ -866,9 +872,9 @@ digraph G {
                     tracedata[ips[index]].get('asn', ' unknown'), tracedata[ips[index]].get('desc', '').split(' ')[0],
                 )
                 if show_country:
-                    label = "%s (%s)" % (label, tracedata[ips[index]]['country'])
+                    label = "%s (%s)" % (label, tracedata[ips[index]].get('country', '??'))
                 nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
-                    ips[index].replace(':','_').replace('?', 'X').replace('.', '_'),
+                    cleanup_name(ips[index]),
                     count if index == 0 else 0,
                     colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
                     label,
@@ -877,9 +883,9 @@ digraph G {
 
                 if index < len(ips)-1:
                     edgename = "node%s_%d -> node%s_0" % (
-                        ips[index].replace(':','_').replace('?','X').replace('.','_'),
+                        cleanup_name(ips[index]),
                         count if index == 0 else 0,
-                        ips[index + 1].replace(':','_').replace('?','X').replace('.','_'),
+                        cleanup_name(ips[index + 1]),
                     )
                     l = edgelist.get(edgename, [])
                     l.append(colors[count % len(colors)])
