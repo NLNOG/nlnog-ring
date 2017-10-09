@@ -670,7 +670,7 @@ def cymru_descr(asn):
 def cleanup_name(name):
     """Cleans up and normalize a name so that it can be used as a Graphviz
     node name"""
-    return name.replace(':', '_').replace('?', 'X').replace('.', '_')
+    return name.replace(':', '_').replace('?', 'X').replace('.', '_').replace('-', '_')
 
 
 def extract_hops(host, traceroute):
@@ -680,7 +680,7 @@ def extract_hops(host, traceroute):
         if hop == "???":
             # Make sure that unknown hops still end up with a unique name
             hop_id = h.split()[0].split('.')[0]
-            hop = "unknown_{}_{}".format(host, hop_id)
+            hop = "unknown_{}_{}".format(cleanup_name(host), hop_id)
         hops.append(hop)
     return hops
 
