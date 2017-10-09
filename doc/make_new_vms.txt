@@ -10,3 +10,6 @@ your liking:
 
 Make sure to attach the VM to the proper shared network bridge, usually this is
 'virbr0' or 'virbr1'. Also make sure to flag the VM as 'autostart'.
+
+Alternatively one can make a VM on the 'NLNOG Infrastructure' as hosted in the
+PCExtreme and Leaseweb clouds.
