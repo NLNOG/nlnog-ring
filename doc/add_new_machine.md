@@ -5,7 +5,7 @@ These steps are required to add a machine to the ring
 On `dbmaster.infra.ring.nlnog.net`:
 
 ```
-ring-admin add machine $username $hostname $asnumber $countrycode $geo "$datacenter" $v4address $v6address [$statecode]
+ring-admin add machine $username $hostname $asnumber $countrycode $geo "$datacenter" $v6address [$v4address] [$statecode]
 ```
 
 # Update DNS
