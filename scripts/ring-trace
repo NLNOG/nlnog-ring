@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.8.2         API moved to a new location
  v1.8.1         Minor fix for graph output
  v1.8           Minor fix for ASN lookup
                 Added -f and -F flag for filtering results on IP and ASN
@@ -66,7 +67,7 @@ except:
 VERSION="1.8.1"
 DEBUG=0
 PASTEBIN="https://ring.nlnog.net/paste/"
-API_NODES="https://ring.nlnog.net/api/1.0/nodes/active"
+API_NODES="https://api.ring.nlnog.net/1.0/nodes/active"
 CONFIGFILE=os.path.expanduser("~/.ringtrace.cfg")
 MAX_EDGE_WIDTH=4
 MAX_DNS_THREAD=25
