@@ -12,7 +12,7 @@ User    = Etc.getlogin
 Date    = Time.now.utc.strftime '%Y-%m-%d %H:%M:%S (UTC)'
 Pager   = '/usr/bin/less -R'
 SSHCMD  = 'ssh -q -t -C '
-API     = 'https://ring.nlnog.net/api/1.0'
+API     = 'https://api.ring.nlnog.net/1.0'
 
 class SSH
   require 'net/ssh'
