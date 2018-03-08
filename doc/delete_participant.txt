@@ -1,4 +1,4 @@
-# These steps are required to add a machine to the ring
+# These steps are required to remove a machine from the ring
 
 # Turn the node off
 shutdown -h now
