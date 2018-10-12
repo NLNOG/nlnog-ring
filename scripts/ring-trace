@@ -798,102 +798,106 @@ digraph G {
     edges = {}
     edgelist = {}
     for host in traces.keys():
-        ips = extract_hops(host, traces[host])
-
-        if asn and ips:
-            # asns instead of ips
-            a = []
-            for ip in ips:
-                if tracedata.has_key(ip):
-                    if not (tracedata[ip].get("ix", False) and no_ixp):
-                        a.append((tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), ""))
-                else:
-                    debug("warning: cannot find %s:" % ip)
-
-            if remove_broken:
-                # remove unkown entries
-                for i in ["unknown", "NA"]:
-                    while i in [x[0] for x in a]:
-                        for x in a:
-                            if x[0] == i:
-                                a.remove(x)
-
-            # make a list of the asns, showing each asn only once
-            asns = [key for key,i in itertools.groupby(a)]
-            # additional first hop to distinguish between different nodes in the same asn
-            asns.insert(0, a[0])
-
-            for index in range(0, len(asns)):
-                fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(asns)-1 else "#ddffdd" if (asns[index][1] and highlight_ixp) else "#ffffff"
-
-                if asns[index][1]:
-                    label = "%s%s" % (
-                        "%s\\n" % host if index == 0 else "",
-                        asns[index][2],
-                    )
-                else:
-                    label = "%s%s\\nAS%s" % (
-                        "%s\\n" % host if index == 0 else "",
-                        asns[index][2].split(" ")[0],
-                        asns[index][0]
-                    )
-                nodes["    node%s_%d%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\"]" % (
-                    asns[index][0], count if index == 0 else 0, "f" if index == 0 else "",
-                    colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
-                    label, fc,
-                )] = 1
-
-                if index < len(asns)-1:
-                    edgename = "node%s_%d%s -> node%s_0" % (
-                        asns[index][0], count if index == 0  else 0, "f" if index == 0 else "",
-                        asns[index + 1][0],
-                    )
-                    l = edgelist.get(edgename, [])
-                    l.append(colors[count % len(colors)])
-                    edgelist[edgename] = l
+        if len(traces[host]) == 0:
+            print "No traceroute returned from %s" % host
         else:
-            if remove_broken:
-                # remove unkown entries
-                ips = [i for i in ips if not i.startswith('unknown') and not i == "NA"]
+            ips = extract_hops(host, traces[host])
 
-            # remove IXP hops if wanted
-            if no_ixp:
+            if asn and ips:
+                # asns instead of ips
+                a = []
                 for ip in ips:
-                    if tracedata[ip]["ix"]:
-                        ips.remove(ip)
+                    if tracedata.has_key(ip):
+                        if not (tracedata[ip].get("ix", False) and no_ixp):
+                            a.append((tracedata[ip].get("asn", "unknown"),tracedata[ip].get("ix", False),tracedata[ip].get("desc", "unknown"), ""))
+                    else:
+                        debug("warning: cannot find %s:" % ip)
 
-            for index in range(0, len(ips)):
-                try:
-                    fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(ips)-1 else "#ddffdd" if (tracedata[ips[index]]["ix"] and highlight_ixp) else "#ffffff"
-                except:
-                    pass
+                if remove_broken:
+                    # remove unkown entries
+                    for i in ["unknown", "NA"]:
+                        while i in [x[0] for x in a]:
+                            for x in a:
+                                if x[0] == i:
+                                    a.remove(x)
 
-                label = "%s%s\\nAS%s - %s" % (
-                    ip_label(ips[index]),
-                    "\\n%s" % tracedata[ips[index]]['fqdn'] if (index == 0 or resolve) else "",
-                    tracedata[ips[index]].get('asn', ' unknown'), tracedata[ips[index]].get('desc', '').split(' ')[0],
-                )
-                if show_country:
-                    label = "%s (%s)" % (label, tracedata[ips[index]].get('country', '??'))
-                nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
-                    cleanup_name(ips[index]),
-                    count if index == 0 else 0,
-                    colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
-                    label,
-                    fc,
-                )] = 1
+                # make a list of the asns, showing each asn only once
+                asns = [key for key,i in itertools.groupby(a)]
+                
+                # additional first hop to distinguish between different nodes in the same asn
+                asns.insert(0, a[0])
 
-                if index < len(ips)-1:
-                    edgename = "node%s_%d -> node%s_0" % (
+                for index in range(0, len(asns)):
+                    fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(asns)-1 else "#ddffdd" if (asns[index][1] and highlight_ixp) else "#ffffff"
+
+                    if asns[index][1]:
+                        label = "%s%s" % (
+                            "%s\\n" % host if index == 0 else "",
+                            asns[index][2],
+                        )
+                    else:
+                        label = "%s%s\\nAS%s" % (
+                            "%s\\n" % host if index == 0 else "",
+                            asns[index][2].split(" ")[0],
+                            asns[index][0]
+                        )
+                    nodes["    node%s_%d%s [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\"]" % (
+                        asns[index][0], count if index == 0 else 0, "f" if index == 0 else "",
+                        colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
+                        label, fc,
+                    )] = 1
+
+                    if index < len(asns)-1:
+                        edgename = "node%s_%d%s -> node%s_0" % (
+                            asns[index][0], count if index == 0  else 0, "f" if index == 0 else "",
+                            asns[index + 1][0],
+                        )
+                        l = edgelist.get(edgename, [])
+                        l.append(colors[count % len(colors)])
+                        edgelist[edgename] = l
+            else:
+                if remove_broken:
+                    # remove unkown entries
+                    ips = [i for i in ips if not i.startswith('unknown') and not i == "NA"]
+
+                # remove IXP hops if wanted
+                if no_ixp:
+                    for ip in ips:
+                        if tracedata[ip]["ix"]:
+                            ips.remove(ip)
+
+                for index in range(0, len(ips)):
+                    try:
+                        fc = "#eeeeee" if index == 0 else "#fffacd" if index == len(ips)-1 else "#ddffdd" if (tracedata[ips[index]]["ix"] and highlight_ixp) else "#ffffff"
+                    except:
+                        pass
+
+                    label = "%s%s\\nAS%s - %s" % (
+                        ip_label(ips[index]),
+                        "\\n%s" % tracedata[ips[index]]['fqdn'] if (index == 0 or resolve) else "",
+                        tracedata[ips[index]].get('asn', ' unknown'), tracedata[ips[index]].get('desc', '').split(' ')[0],
+                    )
+                    if show_country:
+                        label = "%s (%s)" % (label, tracedata[ips[index]].get('country', '??'))
+                    nodes["    node%s_%d [shape=rectangle color=\"%s\" fontsize=8 label=\"%s\" style=filled fillcolor=\"%s\" ]" % (
                         cleanup_name(ips[index]),
                         count if index == 0 else 0,
-                        cleanup_name(ips[index + 1]),
-                    )
-                    l = edgelist.get(edgename, [])
-                    l.append(colors[count % len(colors)])
-                    edgelist[edgename] = l
+                        colors[count % len(colors)] if (index ==0 and not remove_duplicate) else "black",
+                        label,
+                        fc,
+                    )] = 1
 
-        count += 1
+                    if index < len(ips)-1:
+                        edgename = "node%s_%d -> node%s_0" % (
+                            cleanup_name(ips[index]),
+                            count if index == 0 else 0,
+                            cleanup_name(ips[index + 1]),
+                        )
+                        l = edgelist.get(edgename, [])
+                        l.append(colors[count % len(colors)])
+                        edgelist[edgename] = l
+
+            count += 1
 
     for e in edgelist.keys():
         for l in edgelist[e]:
