@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.9           Add option for increasing mtr count
  v1.8.2         API moved to a new location
  v1.8.1         Minor fix for graph output
  v1.8           Minor fix for ASN lookup
@@ -64,7 +65,7 @@ except:
     print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
     sys.exit(1)
 
-VERSION="1.8.1"
+VERSION="1.9"
 DEBUG=0
 PASTEBIN="https://ring.nlnog.net/paste/"
 API_NODES="https://api.ring.nlnog.net/1.0/nodes/active"
@@ -509,7 +510,7 @@ class LookupThread(threading.Thread):
 
 class TraceThread(threading.Thread):
 
-    def __init__(self, host, destination, user, proto, udp, timeout, sshcommand):
+    def __init__(self, host, destination, user, proto, udp, timeout, mtrcount, sshcommand):
         self.starttime = time.time()
         self.host = host
         self.dest = destination
@@ -517,6 +518,7 @@ class TraceThread(threading.Thread):
         self.proto = proto
         self.udp = udp
         self.timeout = timeout
+        self.mtrcount = mtrcount
         self.sshcommand = sshcommand
         self.result  = ""
         threading.Thread.__init__(self)
@@ -524,12 +526,14 @@ class TraceThread(threading.Thread):
 
     def run(self):
         # run the mtr command
-        cmd = "%s %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s --report-wide -c1 -r -n %s %s\"" % (
+        cmd = "%s %s -o ConnectTimeout=%d %s %s.ring.nlnog.net \"mtr %s --report-wide -c%d -r -n %s %s\"" % (
             self.sshcommand,
             "-v" if DEBUG > 1 else "",
             self.timeout,
             "-l %s" % self.user if self.user != None else "",
-            self.host, self.proto,
+            self.host, 
+            self.proto,
+            self.mtrcount,
             "-u" if self.udp else "",
             self.dest,
         )
@@ -605,7 +609,7 @@ def get_hostlist():
     return hosts
 
 
-def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
+def traceroutes(hosts, destination, user, proto, udp, timeout, mtrcount, sshcommand):
     """Perform all traceroutes.
     """
 
@@ -614,7 +618,7 @@ def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
 
     # launch all threads
     for host in hosts:
-        threads[host] = TraceThread(host, destination, user, proto, udp, timeout, sshcommand)
+        threads[host] = TraceThread(host, destination, user, proto, udp, timeout, mtrcount, sshcommand)
         threads[host].start()
 
     # wait for all threads to end
@@ -1090,6 +1094,7 @@ def read_config():
         "pastebin":         False,          # flag: -b, --pastebin
         "removebroken":     False,          # flag: -B, --remove-broken-hops
         "showcountry":      False,          # flag: -c, --show-country
+        "mtrcount":         1,              # flag: -C, --count
         "removeduplicate":  False,          # flag: -d, --remove-duplicate-edges
         "excludehosts":     [],             # flag: -e, --exclude
         "via-ip":           [],             # flag: -f, --filter-ip
@@ -1139,6 +1144,7 @@ def read_config():
         "ipv6":             "bool",
         "via-ip":           "str",
         "via-asn":          "str",
+        "mtrcount":         "int",
     }
 
     try:
@@ -1226,6 +1232,14 @@ if __name__ == "__main__":
         help="send output to a pastebin instead of saving it to file",
         default=conf['pastebin'],
         const=True
+    )
+    parser.add_argument(
+        "-C", "--count",
+        action="store",
+        dest="mtrcount",
+        help="specify the number of mtr pings",
+        default=conf['mtrcount'],
+        type=int
     )
     parser.add_argument(
         "-B", "--remove-broken-hops",
@@ -1454,7 +1468,7 @@ if __name__ == "__main__":
         "UDP" if ns.udp else "ICMP",
         ns.destination, len(hosts), ns.timeout)
     debug('performing traces.')
-    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout, ns.sshcommand)
+    traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout, ns.mtrcount, ns.sshcommand)
 
     if len(traces) == 0:
         print "No traces retrieved."
