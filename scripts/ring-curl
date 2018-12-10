@@ -188,6 +188,9 @@ sub parse_info {
         # The following items cause segfaults
         next if ($entry =~ /^CURLINFO_CERTINFO/);
         next if ($entry =~ /^CURLINFO_SLIST/);
+        next if ($entry =~ /^CURLINFO_TLS_SESSION/);
+        next if ($entry =~ /^CURLINFO_TLS_SSL_PTR/);
+        next if ($entry =~ /^CURLINFO_STRING/);
 
         my $name = lc($entry);
         $name =~ s/^curlinfo_//;
