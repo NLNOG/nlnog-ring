@@ -1,0 +1,48 @@
+# Kafka infrastructure
+
+Kafka is used as a message queue for batched metrics aggregation (work in progress).
+
+The only broker is compute02.infra.nlnog.net.
+
+Ansible will not restart Kafka on configuration changes - a cold Kafka restart can
+take a while, so it should be done manually.
+
+    systemctl restart zookeeper  # only necessary if ZK configs were modified
+    systemctl restart kafka
+
+Restarting Kafka will lead to data loss for producers that have no buffer on their own.
+Right now, there's no buffer-less producers, so restarting Kafka is safe.
+
+
+## Working with Kafka
+
+    sudo -u kafka -i
+
+    # List topics
+    kafka-topics.sh $ZP --list
+
+    # Describe topic
+    kafka-topics.sh $ZP --describe --topic test
+
+    # Set topic retention (either by bytes or time)
+    kafka-configs.sh $ZP --entity-type topics --entity-name test --alter --add-config retention.bytes=300000000000
+
+    # Consume topic using the Java consumer (add --from-beginning for replay)
+    kafka-console-consumer.sh $KP --topic test --partition 0
+
+    # Produce to topic using the Java producer
+    while : ; do date; sleep 1; done | kafka-console-producer.sh $KB --topic test --max-block-ms 500
+
+## Working with kafkacat
+
+kafkacat is a librdkafka-based client (rather than the Kafka Java clients). It's much
+more friendly for doing advanced operations, like a consumer group or specifying offsets,
+and most importantly, it's in the Ubuntu repos, so it can be easily used from other hosts.
+
+    sudo -u kafka -i
+
+    # Simple consumer (no consumer group), start at end, beginning or offset
+    kafkacat -t test -o end
+    kafkacat -t test -o beginning
+    kafkacat -t test -o 1500
+
