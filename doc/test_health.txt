@@ -1,8 +1,0 @@
-ping6 ${machine}                                            # ipv6 reachable?
-ping ${machine}                                             # ipv4 reachable?
-ssh ${machine} lsb_release -r -s => 12.04                   # correct OS?
-ssh ${machine} 'lscpu | head -1' => 'Architecture:          x86_64' # 64 bit?
-ssh ${machine} 'sudo touch /test && sudo rm /test'          # root fs writeable?
-ssh ${machine} date +%s => must be date close to real 'now' # time correct?
-ssh ${machine} sudo puppetd --test                          # can puppet run?
-
