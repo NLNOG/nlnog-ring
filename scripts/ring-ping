@@ -28,6 +28,7 @@ while getopts "6vitdn:" flag; do
         ;;
     n)
         nodes=$OPTARG
+        test "$nodes" -eq 0 && unset nodes
         ;;
     v)
         verbose=1
@@ -54,7 +55,7 @@ if [ $# -lt 1 ]; then
     echo -e "\t-t \t\t print hop distance for each server"
     echo -e "\t-i \t\t print host information for each server"
     echo -e "\t-6 \t\t use IPv6 - obsolete, used only for backwards compatibility"
-    echo -e "\t-n \t\t number of nodes in test"
+    echo -e "\t-n \t\t number of nodes in test (default $nodes; use 0 for all nodes)"
     echo -e "\t-d \t\t debug mode"
     exit 1
 fi
@@ -120,15 +121,11 @@ if [ -n "${minfo}" ]; then
     hinfo=":'\$(grep Location: /etc/motd|cut -d: -f2)'"
 fi
 
-ping_cmd="echo '\$(hostname -s)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' $hinfo: $trace_cmd"
-ssh_cmd="ssh -q -o ConnectTimeout=3 {}.ring.nlnog.net ${ping_cmd}"
+ping_cmd="echo '\$(hostname)': '\$(${ping} -c1 -W1 $host | grep ^rtt)' $hinfo: $trace_cmd"
+ssh_cmd="ssh -q -o ConnectTimeout=3 {} ${ping_cmd}"
 
-SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;' | tr -d '"' | tr ' ' '\n')
 
-# Now the this list is "quite a good" random
-if [ ${nodes} -ne 0 ]; then
-    SERVERS=$(echo ${SERVERS} | fmt -1 | sort -R | head -n ${nodes})
-fi
+SERVERS=$(curl -s https://api.ring.nlnog.net/1.0/nodes/active | jq -r ".results.nodes | map(select(.alive_ipv4 == 1 and .alive_ipv6 == 1)) | .[0:${nodes}][].hostname")
 
 test ${debug} -ge 1 && echo DEBUG: checking servers: ${SERVERS}
 
@@ -155,9 +152,9 @@ while read line; do
             fi
 
     replies=( ${replies[@]} ${time} )
-    [ -n "${verbose}" ] && [ -z "${minfo}" ] && printf "%-30s %-20s %s %s\n" ${server}: $time $hops
+    [ -n "${verbose}" ] && [ -z "${minfo}" ] && printf "%-30s %-20s %s %s\n" ${server%%.*}: $time $hops
 
-    [ -n "${verbose}" ] && [ -n "${minfo}" ] && printf "%-30s %-20s %-10s %s %s %s\n" ${server}: $time $hops "[$info ]"
+    [ -n "${verbose}" ] && [ -n "${minfo}" ] && printf "%-30s %-20s %-10s %s %s %s\n" ${server%%.*}: $time $hops "[$info ]"
 
     else
         timeouts=( ${timeouts[@]} $server )
