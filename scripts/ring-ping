@@ -165,12 +165,9 @@ while read line; do
 done < <(echo "$SERVERS" | xargs -P10 -n1 -I{} sh -c "${ssh_cmd}||:")
 
 if [ -n "${replies[*]}" ]; then
-    total=0
-    for t in ${replies[@]}; do
-    total=$(echo $total + $t | bc)
-    done
-    avg=$(echo $total / ${#replies[@]} | bc)
-    echo ${#replies[@]} servers: ${avg}ms average
+    mean=$(printf '%.2f' $(printf '%s\n' "${replies[@]}" | datamash mean 1))
+    median=$(printf '%.2f' $(printf '%s\n' "${replies[@]}" | datamash median 1))
+    echo ${#replies[@]} servers: ${mean}ms average ${median}ms median
 fi
 
 uc=`(echo ${timeouts[*]} | tr ' ' '\n' | wc -l)`
