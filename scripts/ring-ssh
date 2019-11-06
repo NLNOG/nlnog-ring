@@ -20,7 +20,7 @@ if [ ! -d $(dirname $SSH_AUTH_SOCK) ]; then
 fi
 if [ ! -S $SSH_AUTH_SOCK ];
 then 
-    eval $(ssh-agent -a $SSH_AUTH_SOCK)
+    eval $(ssh-agent -s -a $SSH_AUTH_SOCK)
     ssh-add -D
     ssh-add $keyfile
 fi
