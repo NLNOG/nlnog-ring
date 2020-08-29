@@ -13,18 +13,21 @@ place the ssh keys in ~${username}/ssh-keys on manage.ring.nlnog.net
 
 # Execute steps from add_new_machine.txt
 
-# Upload logo to /var/www/ring.nlnog.net/HTML/images/ring-logos/
+# Add logo to ring-web git repo
 # (rename to <owner>.png)
-convert -resize 200x100 $image $owner.png
-scp $image master01.infra.ring.nlnog.net:/var/www/ring.nlnog.net/HTML/images/ring-logos/
-
-# Add a news entry on the website https://ring.nlnog.net/wp-admin/post-new.php
-ring-admin generate webpost $username
+convert -resize 200x100 $image $ring-web/content/images/ring-logos/$owner.png
+cd $ring-web
+git add content/images/ring-logos/*
+git commit -m 'added logo for $owner' content/images/ring-logos/*
+git push
 
 # Send a welcome mail to the participant
 ring-admin send welcomemail $username
 
 # Send mail to the ring-users list
 ring-admin send announcemail $username
+
+# Add a news entry on the website
+ring-admin publish hugopost $username
 
 # Done.
