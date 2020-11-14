@@ -9,6 +9,7 @@
 ring-admin add participant $company "$contact" $email $nocemail $username "$companydescription" $url
 
 # Add SSH key (NEW !!!!! )
+ansible-playbook -i nodes --extra-vars "username=$username" -l auth.infra.ring.nlnog.net provision-ring-user.yml
 place the ssh keys in ~${username}/ssh-keys on manage.ring.nlnog.net
 
 # Execute steps from add_new_machine.txt
