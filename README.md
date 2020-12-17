@@ -36,7 +36,4 @@ If you have any questions please do not hesitate to contact me.
 
 Kind regards,
 
-Job Snijders <job@snijders-it.nl>
-http://snijders-it.nl/pgp/
-http://snijders-it.nl/job-snijders-public-ssh-key.txt
-
+Job
