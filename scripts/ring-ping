@@ -10,7 +10,7 @@
 #        StrictHostKeyChecking no
 #        User <yourusername>
 # --
-# --> A lot of modyfication by Arkadiusz Nowicki
+# --> A lot of modifications by Arkadiusz Nowicki
 #
 
 debug=0
