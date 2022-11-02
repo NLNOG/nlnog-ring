@@ -1,4 +1,8 @@
-# These steps are required to remove a machine from the ring
+# Machines that are unreachable for three months are automatically removed by
+# the 'node_down_deactivation' cronjob. The details of removed machines are
+# sent to root@dbmaster.infra.ring.nlnog.net
+
+# The below steps are required to manually remove a machine from the ring
 
 # Turn the node off
 shutdown -h now
@@ -12,4 +16,6 @@ ring-admin delete machine <name>
 
 ring-admin deactivate participant <username>
 
-# Done. Ansible will do the rest.
+# Done. Ansible will:
+# - disable the user
+# - move the 'ssh-keys' file to 'ssh-keys.disabled'
