@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """
  ring-trace     perform a series of mtr's towards one destination
                 and visualise the results by generating an image
@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.9           Conversion to Python3
  v1.8.3         Pastebin moved to a new location
  v1.8.2         API moved to a new location
  v1.8.1         Minor fix for graph output
@@ -49,23 +50,22 @@
  v1.2           added group-by-asn option (-a)
 """
 
-import sys, os, threading, tempfile, time, random, re, operator, itertools
-import urllib, urllib2, socket, Queue, types, simplejson, time
+import sys, os, threading, tempfile, time, random, re, operator, itertools, math
+import requests, socket, queue, types, simplejson, time
+import argparse, configparser
+from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network, AddressValueError
 
 try:
-    from dns.resolver import query
+    from dns.resolver import resolve
     from dns import name, reversename
     from dns.exception import DNSException
-    import argparse, ConfigParser
-    from ipaddr import IPv4Address, IPv6Address, IPv4Network, IPv6Network, AddressValueError
 
 except:
-    print "ERROR: one or more of the following python packages is missing:"
-    print "dnspython, argparse, ipaddr\n"
-    print "On Ubuntu: apt-get install python-dnspython python-argparse python-ipaddr"
+    print("ERROR: dnspython missing:")
+    print("On Ubuntu: apt-get install python3-dnspython")
     sys.exit(1)
 
-VERSION="1.8.1"
+VERSION="1.9"
 DEBUG=0
 PASTEBIN="https://paste.ring.nlnog.net/"
 API_NODES="https://api.ring.nlnog.net/1.0/nodes/active"
@@ -78,10 +78,10 @@ colors = []
 ixps4 = [
    # (prefix, desc, fixed-asn)
    ("80.249.208.0/21", "AMS-IX", 1200),
-   ("80.81.192.95/22", "DE-CIX", 6695),
+   ("80.81.192.0/22", "DE-CIX", 6695),
    ("195.66.224.0/22", "LINX", 5459),
    ("195.66.236.0/23", "LINX", 5459),
-   ("193.239.116.33/23", "NL-ix", 34307),
+   ("193.239.116.0/23", "NL-ix", 34307),
    ("193.109.219.0/24", "Lipex", 0),
    ("193.203.5.0/24", "Lonap", 0),
    ("206.223.115.0/24", "Equinix Ashburn", 0),
@@ -126,7 +126,7 @@ ixps4 = [
    ("212.121.32.0/19", "Edge-IX", 0),
    ("195.85.203.0/24", "FreeBIX", 0),
    ("194.53.172.0/25", "BNIX", 0),
-   ("194.242.34.14/25", "SwissIX", 0),
+   ("194.242.34.0/25", "SwissIX", 0),
    ("213.234.0.0/25", "CATNIX", 0),
    ("193.149.0.0/24", "ESPANIX", 0),
    ("198.32.131.0/24", "KD-X", 0),
@@ -485,11 +485,11 @@ ixps6 = [
 
 class LookupThread(threading.Thread):
 
-    def __init__(self, index, queue):
-        self.queue = queue
+    def __init__(self, index, q):
+        self.queue = q
         self.result = {}
         self.index = index
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self,daemon=True)
 
 
     def run(self):
@@ -549,13 +549,13 @@ class TraceThread(threading.Thread):
         # check if the host has an AAAA record
         if qtype == "A":
             try:
-                query(self.dest, "AAAA")
+                resolve(self.dest, "AAAA")
                 qtype = "AAAA"
             except:
                 qtype = "A"
 
         try:
-            qres = query(qstr, qtype)
+            qres = resolve(qstr, qtype)
         except:
             qres = [qstr]
 
@@ -580,7 +580,7 @@ def fix_dest(dest, ipv4, ipv6):
         return dest
 
     try:
-        qres = query(dest, "A" if ipv4 else "AAAA")
+        qres = resolve(dest, "A" if ipv4 else "AAAA")
         return str(qres.rrset[0])
     except DNSException:
         # failed to do a lookup, return the original label instead
@@ -593,14 +593,12 @@ def get_hostlist():
     """
     hosts = []
     try:
-        req = urllib2.Request(API_NODES)
-        opener = urllib2.build_opener()
-        f = opener.open(req)
-        result = simplejson.load(f)
+        req = requests.get(API_NODES)
+        result = simplejson.loads(req.text)
         if result["info"]["success"] == 1:
             hosts = [ host["hostname"].replace(".ring.nlnog.net", "") for host in result["results"]["nodes"] ]
-    except Exception, e:
-        print e
+    except Exception as e:
+        print(str(e))
         return []
 
     return hosts
@@ -628,7 +626,7 @@ def traceroutes(hosts, destination, user, proto, udp, timeout, sshcommand):
         if len(r) > 1:
             result[host] = threads[host].get_result()[2:]
         else:
-            print "Host %s returned no trace." % host
+            print("Host %s returned no trace." % host)
 
     return result
 
@@ -639,7 +637,7 @@ def cymru_origins(addr):
     reverseaddr = reverseaddr.replace('.ip6.arpa.','.{1}')
     originquery = reverseaddr.format('origin.asn.cymru.com.','origin6.asn.cymru.com')
     try:
-        origins = query(originquery,'TXT')
+        origins = resolve(originquery,'TXT')
     except:
         return []
     return origins
@@ -651,7 +649,7 @@ def cymru_paths(addr):
     reverseaddr = reverseaddr.replace('.ip6.arpa.','.{}')
     peerquery   = reverseaddr.format('peer.asn.cymru.com.')
     try:
-        paths = query(peerquery,'TXT')
+        paths = resolve(peerquery,'TXT')
     except:
         return []
     return paths
@@ -660,7 +658,7 @@ def cymru_paths(addr):
 def cymru_descr(asn):
     asnquery    = "as{}.asn.cymru.com".format(asn.strip())
     try:
-        descrs = query(asnquery,'TXT')
+        descrs = resolve(asnquery,'TXT')
         descr=""
         for d in descrs:
             (dasn,dcountry,dregion,ddate,ddescr)=d.to_text().lstrip('"').rstrip('"').split('|')
@@ -742,18 +740,17 @@ def analyse(traceroutes, resolve):
     # DNS lookups of fqdns
     debug("Looking up DNS entries.")
     threads = {}
-    queue = Queue.Queue()
+    q = queue.Queue()
 
     for i in range(MAX_DNS_THREAD):
-        threads[i] = LookupThread(i, queue)
-        threads[i].setDaemon(True)
+        threads[i] = LookupThread(i, q)
         threads[i].start()
 
     ips = iplist.keys()
     for ip in ips:
-        queue.put(ip)
+        q.put(ip)
 
-    queue.join()
+    q.join()
     for i in range(MAX_DNS_THREAD):
         result = threads[i].get_result()
         for ip in result.keys():
@@ -800,7 +797,7 @@ digraph G {
     edgelist = {}
     for host in traces.keys():
         if len(traces[host]) == 0:
-            print "No traceroute returned from %s" % host
+            print("No traceroute returned from %s" % host)
         else:
             ips = extract_hops(host, traces[host])
 
@@ -1000,32 +997,30 @@ def make_text(traces, tracedata, outfile, pastebin, asn, dest, resolve):
             fh = open(outfile, 'w')
             fh.write("\n".join(out))
             fh.close()
-            print "Wrote output to file '%s'. " % outfile
+            print("Wrote output to file '%s'. " % outfile)
         except:
-            print "Failed to save output to '%s'." % outfile
+            print("Failed to save output to '%s'." % outfile)
 
     if pastebin:
         debug("sending file to pastebin...")
 
-        postarray = [
-            ("content", "\n".join(out)),
-            ("mimetype", "text/html"),
-            ("ttl", 604800)
-        ]
-        postdata = urllib.urlencode(postarray)
+        postdict = {
+                "content": "\n".join(out),
+                "mimetype": "text/html",
+                "ttl": 604800
+        }
         try:
-            req = urllib2.Request(url=PASTEBIN, data=postdata)
-            result = urllib2.urlopen(req)
+            result = requests.post(url=PASTEBIN, data=postdict)
             if result.url == PASTEBIN:
-                print "\nFailed to upload the output to the pastebin."
+                print("\nFailed to upload the output to the pastebin.")
                 sys.exit(1)
             else:
-                print "\nOutput uploaded to %s" % result.url
+                print("\nOutput uploaded to %s" % result.url)
         except:
-            print "failed to upload the image to the pastebin."
+            print("Exception when uploading the output to the pastebin.")
             sys.exit(1)
     else:
-        print "\n".join(out)
+        print("\n".join(out))
 
 
 def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
@@ -1037,9 +1032,9 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
             fh = open(outfile, 'w')
             fh.write(dot + "\n")
             fh.close()
-            print "Wrote image to output file '%s'." % outfile
+            print("Wrote image to output file '%s'." % outfile)
         except:
-            print "Failed to save the image to %s" % outfile
+            print("Failed to save the image to %s" % outfile)
             sys.exit(1)
         return
 
@@ -1049,7 +1044,7 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
         f.write(dot + "\n")
         f.close()
     except:
-        print "failed to create temporary file: %s" % fname
+        print("failed to create temporary file: %s" % fname)
         sys.exit(1)
 
     if pastebin:
@@ -1058,45 +1053,43 @@ def make_image(dot, layout, outfile, outtype, pastebin, dest, traces):
         f = os.popen("/usr/bin/%s -T%s -o%s %s" % (layout, outtype, outfile, fname))
         f.close()
     except:
-        print "failed to exec '%s': /usr/bin/%s -T%s -o%s %s" % (layout, layout, outtype, outfile, fname)
+        print("failed to exec '%s': /usr/bin/%s -T%s -o%s %s" % (layout, layout, outtype, outfile, fname))
         sys.exit(1)
 
     if not os.path.exists(outfile):
-        print "failed to generate image."
+        print("failed to generate image.")
         sys.exit(1)
 
     try:
         os.unlink(fname)
     except:
-        print "failed to clean up temporary file: %s" % fname
+        print("failed to clean up temporary file: %s" % fname)
 
     if pastebin:
         debug("sending file to pastebin...")
 
-        postarray = [
-            ("content", file(outfile).read()),
-            ("mimetype", "image/png"),
-            ("ttl", 604800)
-            ]
-        postdata = urllib.urlencode(postarray)
+        postdict = {
+          "content": open(outfile,mode='rb').read(),
+          "mimetype": "image/png",
+          "ttl": 604800
+        }
         try:
-            req = urllib2.Request(url=PASTEBIN, data=postdata)
-            result = urllib2.urlopen(req)
+            result = requests.post(url=PASTEBIN, data=postdict)
             if result.url == PASTEBIN:
-                print "\nFailed to upload the image to the pastebin."
+                print("\nFailed to upload the image to the pastebin.")
                 sys.exit(1)
             else:
-                print "\nImage uploaded to %s" % result.url
+                print("\nImage uploaded to %s" % result.url)
         except:
-            print "failed to upload the image to the pastebin."
+            print("Exception when uploading the image to the pastebin.")
             sys.exit(1)
 
         try:
             os.unlink(outfile)
         except:
-            print "failed to clean up temporary file: %s" % outfile
+            print("failed to clean up temporary file: %s" % outfile)
     else:
-        print "Created file: %s" % outfile
+        print("Created file: %s" % outfile)
 
 
 def filter(traces, tracedata, filter_ip, filter_asn):
@@ -1131,14 +1124,14 @@ def debug(msg):
     """Print a string only if debugging is enabled.
     """
     if DEBUG:
-        print "[%s] %s" % (time.strftime('%H:%M:%S'), msg)
+        print("[%s] %s" % (time.strftime('%H:%M:%S'), msg))
 
 
 def read_config():
     """Parse a configfile.
     """
     debug("reading configfile")
-    cfg = ConfigParser.ConfigParser()
+    cfg = configparser.ConfigParser()
     cfg.read(CONFIGFILE)
 
     # here is our default config
@@ -1201,7 +1194,7 @@ def read_config():
     try:
         options = cfg.options('Config')
         debug("read default settings from '%s'"  % CONFIGFILE)
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         # incorrect or non-existing config file, return defaults
         debug("configfile %s not found, using default values" % CONFIGFILE)
         return config
@@ -1223,12 +1216,12 @@ def read_config():
                 if cfg.get('Config', option).lower() in options:
                     config[option] = cfg.get('Config', option)
                 else:
-                    print "invalid value '%s' for %s, allowed: %s" % (
-                        cfg.get('Config', option), option, ', '.join(options))
+                    print("invalid value '%s' for %s, allowed: %s" % (
+                        cfg.get('Config', option), option, ', '.join(options)))
 
             else:
-                print "invalid type for %s: %s instead of expected %s" % (
-                    option, type(cfg.get('Config', option)), conftypes[option])
+                print("invalid type for %s: %s instead of expected %s" % (
+                    option, type(cfg.get('Config', option)), conftypes[option]))
 
     return config
 
@@ -1236,7 +1229,7 @@ def read_config():
 if __name__ == "__main__":
     start = time.time()
 
-    print "ring-trace v%s - written by Teun Vink <teun@teun.tv>" % VERSION
+    print("ring-trace v%s - written by Teun Vink <teun@teun.tv>" % VERSION)
 
     # set debugging before we start argparsing
     if ('-v' in sys.argv) or ('--verbose' in sys.argv) or ('-vv' in sys.argv) or ('--extra-verbose' in sys.argv):
@@ -1489,32 +1482,32 @@ if __name__ == "__main__":
             hosts.remove(hosts[i])
         hosts = newlist
         if ns.random > 0:
-            print "picked %d host%s at random: %s" % (len(hosts), "s" if (ns.random > 1) else "", " ".join(hosts))
+            print("picked %d host%s at random: %s" % (len(hosts), "s" if (ns.random > 1) else "", " ".join(hosts)))
 
     if len(ns.exclude) > 0:
         for host in ns.exclude:
             if host in hosts:
                 hosts.remove(host)
-        print "Excluding %d hosts: %s" % (len(ns.exclude), " ".join(ns.exclude))
+        print("Excluding %d hosts: %s" % (len(ns.exclude), " ".join(ns.exclude)))
 
     if len(ns.include) > 0:
         for host in ns.include:
             if host not in hosts:
                 hosts.append(host)
-        print "Including %d hosts: %s" % (len(ns.include), " ".join(ns.include))
+        print("Including %d hosts: %s" % (len(ns.include), " ".join(ns.include)))
 
     if len(hosts) == 0:
-        print "Could not retrieve a list of ringnodes from the API."
+        print("Could not retrieve a list of ringnodes from the API.")
         sys.exit(1)
 
-    print "Performing %s traceroutes towards %s from %d ring hosts, ssh-timeout is %d seconds." % (
+    print("Performing %s traceroutes towards %s from %d ring hosts, ssh-timeout is %d seconds." % (
         "UDP" if ns.udp else "ICMP",
-        ns.destination, len(hosts), ns.timeout)
+        ns.destination, len(hosts), ns.timeout))
     debug('performing traces.')
     traces = traceroutes(hosts, destination, ns.user, proto, ns.udp, ns.timeout, ns.sshcommand)
 
     if len(traces) == 0:
-        print "No traces retrieved."
+        print("No traces retrieved.")
         sys.exit(1)
 
     debug('analysing traces.')
@@ -1524,11 +1517,11 @@ if __name__ == "__main__":
         debug("filtering traces.")
         (traces, tracedata) = filter(traces, tracedata, ns.filter_ip, ns.filter_asn)
         if len(traces) == 0:
-            print "No traces found which match the filter criteria."
+            print("No traces found which match the filter criteria.")
             sys.exit(1)
 
     if (ns.hops > 0) and (ns.hops * 2 < len(traces)):
-        print "Picking top and bottom %d hosts based on hop count." % ns.hops
+        print("Picking top and bottom %d hosts based on hop count." % ns.hops)
         # sort based on trace length
         tracelength = {}
         for trace in traces:
@@ -1554,7 +1547,7 @@ if __name__ == "__main__":
             outfile = "trace-%s.%s" % (ns.destination, ns.outtype)
 
         debug('generating color table.')
-        for c in range(0x333333, 0xdddddd, 0xaaaaaa/len(hosts)):
+        for c in range(math.floor(0x333333), math.floor(0xdddddd), math.floor(0xaaaaaa/len(hosts))):
             colors.append("#%x" % c)
 
         debug('generating graphs.')
@@ -1562,9 +1555,9 @@ if __name__ == "__main__":
             ns.show_country, ns.remove_broken, ns.highlight_ixp, ns.remove_duplicate, ns.transparent)
 
         if ns.transparent and ns.outtype != "png":
-            print "Transparent background requested, setting file type to PNG."
+            print("Transparent background requested, setting file type to PNG.")
             ns.outtype = "png"
 
         make_image(dot, ns.layout, outfile, ns.outtype, ns.pastebin, destination, traces)
 
-    print "Done in %.1f seconds." % (time.time() - start)
+    print("Done in %.1f seconds." % (time.time() - start))

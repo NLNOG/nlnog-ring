@@ -8,7 +8,7 @@ ringdomain = "ring.nlnog.net"
 hosts = []
 all_hosts = []
 
-for answers in dns.resolver.query(ringdomain, 'TXT',):
+for answers in dns.resolver.resolve(ringdomain, 'TXT',):
     hosts.append(answers.to_text()[1:-1].split(' '))
 all_hosts = sum(hosts, [])
 
@@ -32,7 +32,7 @@ for server in all_hosts:
     server_fqdn = server + "." + ringdomain
     for record in 'A', 'AAAA':
         try:
-            server_record = dns.resolver.query(server_fqdn, record)
+            server_record = dns.resolver.resolve(server_fqdn, record)
             server_record = str(server_record[0])
             print(server_record + "\t" + server + "\t" + server_fqdn)
         except Exception as e:
