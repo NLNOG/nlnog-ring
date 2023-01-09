@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.9.2         Add Frys-IX to IXP list
  v1.9.1         Small fixes for Python3 convertsion
  v1.9           Conversion to Python3
  v1.8.3         Pastebin moved to a new location
@@ -66,7 +67,7 @@ except:
     print("On Ubuntu: apt-get install python3-dnspython")
     sys.exit(1)
 
-VERSION="1.9.1"
+VERSION="1.9.2"
 DEBUG=0
 PASTEBIN="https://paste.ring.nlnog.net/"
 API_NODES="https://api.ring.nlnog.net/1.0/nodes/active"
@@ -351,6 +352,7 @@ ixps4 = [
    ("206.108.236.0/24", "Boston Internet Exchange", 0),
    ("218.100.21.0/24", "PNIX", 0),
    ("193.138.31.0/24", "Stuttgarter InternetXchange", 0),
+   ("185.1.203.0/24", "Frys-IX", 56393),
 ]
 
 ixps6 = [
@@ -480,6 +482,7 @@ ixps6 = [
     ("2604:2c00:ffff:fff0::/64", "SUPRnet", 0),
     ("2607:f388:0:2200::/64", "MadIX", 0),
     ("2607:fe10:ffff::/64", "MICE", 0),
+    ("2001:7f8:10f::/64", "Frys-IX", 56393),
     ("2001:7f8::/29", "", 0),           # generic IXP
 ]
 
