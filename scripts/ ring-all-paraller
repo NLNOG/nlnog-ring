@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Written by Arkadiusz.Nowicki <arkadiusz.nowicki@aplitt.pl>
+# Strict based on Job Snijders <job@snijders-it.nl> ring-all-serial script
+# Modified by Sten Spans <sten@snore.nl>
+
+if [ $# -lt 1 ]; then
+    echo "No arguments were given"
+    echo "Usage: `basename $0` \"command to be executed on all ring servers\""
+    exit 1
+fi
+
+SERVERS=$(dig -t txt +short ring.nlnog.net | grep -v '^;')
+SERVERS=${SERVERS//'"'/}
+
+
+for host in $SERVERS
+do
+(
+    maszyna=`echo $host | sed ${sedre} -e 's/[^[:alnum:]:.-]+//g'`
+    echo -e "$maszyna: \n `ssh -q -o ConnectTimeout=2 -t $host.ring.nlnog.net $@`"
+    ret=$?
+    if [ "$ret" = 255 ]; then
+        echo "ERROR: ssh connection failed"
+    elif [ "$ret" != 0 ]; then
+        echo "ERROR: remote command failed"
+    fi
+
+)&
+done
