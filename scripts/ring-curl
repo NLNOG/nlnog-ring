@@ -191,6 +191,7 @@ sub parse_info {
         next if ($entry =~ /^CURLINFO_TLS_SESSION/);
         next if ($entry =~ /^CURLINFO_TLS_SSL_PTR/);
         next if ($entry =~ /^CURLINFO_STRING/);
+        next if ($entry =~ /^CURLINFO_PTR/);
 
         my $name = lc($entry);
         $name =~ s/^curlinfo_//;
