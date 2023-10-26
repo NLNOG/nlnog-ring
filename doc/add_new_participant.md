@@ -5,6 +5,7 @@
 * [x] Receipt of application form: https://ring.nlnog.net/contact/application-form/
 
 ## Pre-flight checks
+* [x] Check if the machine is running Ubuntu 22.04 (`cat /etc/lsb-release`)
 * [x] Check if we can log onto the participant's node using details from the form
 * [x] Check if the `/` partition is at least 20GB
 * [x] Check if the `/boot` partition is at least 1GB (if present)
