@@ -46,6 +46,8 @@ passwd --delete root
 deluser --remove-home <provisioning_user>
 ```
 
+Check if the machine has additional autoconf IPv6 addresses and remove them (netplan: `accept-ra: false`)
+
 # Set the node to active
 
 On `dbmaster.infra.ring.nlnog.net`:
