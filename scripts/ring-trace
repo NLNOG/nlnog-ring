@@ -9,6 +9,7 @@
 
 
  Changelog:
+ v1.9.3         Add SONIX to IXP list
  v1.9.2         Add Frys-IX to IXP list
  v1.9.1         Small fixes for Python3 convertsion
  v1.9           Conversion to Python3
@@ -67,7 +68,7 @@ except:
     print("On Ubuntu: apt-get install python3-dnspython")
     sys.exit(1)
 
-VERSION="1.9.2"
+VERSION="1.9.3"
 DEBUG=0
 PASTEBIN="https://paste.ring.nlnog.net/"
 API_NODES="https://api.ring.nlnog.net/1.0/nodes/active"
@@ -353,6 +354,9 @@ ixps4 = [
    ("218.100.21.0/24", "PNIX", 0),
    ("193.138.31.0/24", "Stuttgarter InternetXchange", 0),
    ("185.1.203.0/24", "Frys-IX", 56393),
+   ("185.1.215.0/24", "SONIX Stockholm", 61229),
+   ("185.1.233.0/24", "SONIX Gothenburg", 61229),
+   ("193.201.148.128/26", "SONIX Malmo", 61229),
 ]
 
 ixps6 = [
@@ -483,6 +487,9 @@ ixps6 = [
     ("2607:f388:0:2200::/64", "MadIX", 0),
     ("2607:fe10:ffff::/64", "MICE", 0),
     ("2001:7f8:10f::/64", "Frys-IX", 56393),
+    ("2001:7f8:117::/64", "SONIX Stockholm", 61229),
+    ("2001:7f8:117:1::/64", "SONIX Gothenburg", 61229),
+    ("2001:7f8:117:2::/64", "SONIX Malmo", 61229),
     ("2001:7f8::/29", "", 0),           # generic IXP
 ]
 
