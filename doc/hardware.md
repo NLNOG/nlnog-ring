@@ -50,3 +50,14 @@ virbr1 is virtual switch on the box with this IP space:
 * Mail relay
 * SQA collector
 
+## Eurofiber VCD
+
+Virtual datacenter at Eurofiber Cloud Infra
+https://vcd.eurofiber.com/tenant/NLNOG/
+
+### Network
+
+IPv4 prefix: 109.94.150.128/28 
+IPv4 gateway: 109.94.150.129
+IPv6 prefix: 2a02:fe9:c3a:c001::/64
+IPv6 gateway: 2a02:fe9:c3a:c001::1
