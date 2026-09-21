@@ -34,6 +34,7 @@ ansible-playbook -c ssh --vault-password-file=open-the-vault.sh -i nodes -l $mac
 ```
 
 **note**: `-k -K` is required to specify the logon and sudo password
+**note**: Prepend with `BECOME_EXE=sudo` when provisioning machines < 26.04/resolute
 
 The playbook will upgrade and reboot the machine
 
